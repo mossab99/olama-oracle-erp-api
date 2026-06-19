@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Oracle ERP API Test</title>
+</head>
+<body>
+    <h2>Oracle ERP API Test</h2>
+
+    <button onclick="testFamilies()">Load Families</button>
+    <button onclick="testStudents()">Load Students</button>
+
+    <pre id="output"></pre>
+
+    <script>
+        const API_BASE = "http://192.168.0.13:5000";
+        const API_KEY = "change-this-secret-key";
+
+        function print(data) {
+            document.getElementById("output").textContent =
+                JSON.stringify(data, null, 2);
+        }
+
+        function testFamilies() {
+            fetch(`${API_BASE}/api/families`, {
+                headers: {
+                    "X-API-Key": API_KEY
+                }
+            })
+            .then(response => response.json())
+            .then(data => print(data))
+            .catch(error => print({ error: error.toString() }));
+        }
+
+        function testStudents() {
+            fetch(`${API_BASE}/api/students`, {
+                headers: {
+                    "X-API-Key": API_KEY
+                }
+            })
+            .then(response => response.json())
+            .then(data => print(data))
+            .catch(error => print({ error: error.toString() }));
+        }
+    </script>
+</body>
+</html>
