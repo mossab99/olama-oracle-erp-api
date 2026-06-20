@@ -32,53 +32,53 @@ def _json_safe_rows(rows):
 
 def yes_no_label(value):
     if value == 1:
-        return "ظ†ط¹ظ…"
+        return "\u0646\u0639\u0645"
 
     if value == 0:
-        return "ظ„ط§"
+        return "\u0644\u0627"
 
     return None
 
 
 def active_label(value):
     if value == 1:
-        return "ظپط¹ط§ظ„"
+        return "\u0641\u0639\u0627\u0644"
 
     if value == 0:
-        return "ط؛ظٹط± ظپط¹ط§ظ„"
+        return "\u063a\u064a\u0631 \u0641\u0639\u0627\u0644"
 
     return None
 
 
 def student_gender_label(value):
     if value == 1:
-        return "ط°ظƒط±"
+        return "\u0630\u0643\u0631"
 
     if value == 2:
-        return "ط£ظ†ط«ظ‰"
+        return "\u0623\u0646\u062b\u0649"
 
     return None
 
 
 def student_status_label(value):
     if value == 1:
-        return "ظ…ط³طھظ…ط±"
+        return "\u0645\u0633\u062a\u0645\u0631"
 
     if value == 2:
-        return "ظ…ظ†ط³ط­ط¨"
+        return "\u0645\u0646\u0633\u062d\u0628"
 
     return None
 
 
 def trans_route_label(value):
     if value == 1:
-        return "ط­ط¶ظˆط± ظˆط¹ظˆط¯ط©"
+        return "\u062d\u0636\u0648\u0631 \u0648\u0639\u0648\u062f\u0629"
 
     if value == 2:
-        return "ط­ط¶ظˆط± ظپظ‚ط·"
+        return "\u062d\u0636\u0648\u0631 \u0641\u0642\u0637"
 
     if value == 3:
-        return "ط¹ظˆط¯ط© ظپظ‚ط·"
+        return "\u0639\u0648\u062f\u0629 \u0641\u0642\u0637"
 
     return None
 
