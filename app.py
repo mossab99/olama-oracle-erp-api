@@ -8,6 +8,7 @@ from routes.students import students_bp
 from routes.financial import financial_bp
 from routes.transportation import transportation_bp
 from routes.family_card import family_card_bp
+from routes.student_card import student_card_bp
 
 
 def create_app():
@@ -21,6 +22,7 @@ def create_app():
     app.register_blueprint(financial_bp)
     app.register_blueprint(transportation_bp)
     app.register_blueprint(family_card_bp)
+    app.register_blueprint(student_card_bp)
 
     @app.route("/", methods=["GET"])
     def index():
@@ -39,6 +41,7 @@ def create_app():
                 "families": "/api/families",
                 "family_financial_card": "/api/families/<family_id>/financial-card",
                 "family_transportation": "/api/families/<family_id>/transportation?study_year=2025/2026",
+                "student_card": "/api/families/<family_id>/students/<student_id>/card?study_year=2026-2027",
                 "students": "/api/students",
                 "student_search": "/api/students/search?q=name"
             }
