@@ -6,6 +6,7 @@ from routes.health import health_bp
 from routes.families import families_bp
 from routes.students import students_bp
 from routes.financial import financial_bp
+from routes.transportation import transportation_bp
 
 
 def create_app():
@@ -17,6 +18,7 @@ def create_app():
     app.register_blueprint(families_bp)
     app.register_blueprint(students_bp)
     app.register_blueprint(financial_bp)
+    app.register_blueprint(transportation_bp)
 
     @app.route("/", methods=["GET"])
     def index():
@@ -34,6 +36,7 @@ def create_app():
                 "health": "/api/health",
                 "families": "/api/families",
                 "family_financial_card": "/api/families/<family_id>/financial-card",
+                "family_transportation": "/api/families/<family_id>/transportation?study_year=2025/2026",
                 "students": "/api/students",
                 "student_search": "/api/students/search?q=name"
             }
