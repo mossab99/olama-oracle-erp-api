@@ -30,6 +30,58 @@ def _json_safe_rows(rows):
     return [_json_safe_row(row) for row in rows]
 
 
+def _map_is_active_name(is_active):
+    if is_active == 1:
+        return "فعال"
+
+    if is_active == 0:
+        return "غير فعال"
+
+    return "غير معروف"
+
+
+def _map_student_gender_name(student_gender):
+    if student_gender == 1:
+        return "ذكر"
+
+    if student_gender == 2:
+        return "أنثى"
+
+    return "غير معروف"
+
+
+def _map_student_status_name(student_status):
+    if student_status == 1:
+        return "مستمر"
+
+    if student_status == 2:
+        return "غير مستمر"
+
+    return "غير معروف"
+
+
+def _add_family_labels(family):
+    if family is None:
+        return None
+
+    family["is_active_name"] = _map_is_active_name(family.get("is_active"))
+    return family
+
+
+def _add_student_labels(student):
+    student["student_gender_name"] = _map_student_gender_name(
+        student.get("student_gender")
+    )
+    student["student_status_name"] = _map_student_status_name(
+        student.get("student_status")
+    )
+    return student
+
+
+def _add_students_labels(students):
+    return [_add_student_labels(student) for student in students]
+
+
 def get_family_card_family(family_id):
     sql = """
         SELECT
@@ -82,15 +134,10 @@ def get_family_card_family(family_id):
 
             f.FAM_CLASS_ID AS family_class_id,
             f.IS_ACTIVE AS is_active,
-            CASE f.IS_ACTIVE
-                WHEN 1 THEN 'ظپط¹ط§ظ„'
-                WHEN 0 THEN 'ط؛ظٹط± ظپط¹ط§ظ„'
-                ELSE 'ط؛ظٹط± ظ…ط¹ط±ظˆظپ'
-            END AS is_active_name,
             f.NOTES AS notes,
 
-            NULL AS date_created,
-            NULL AS date_modified
+            f.DATE_CREATED AS date_created,
+            f.DATE_MODIFIED AS date_modified
 
         FROM SCH_FAMILY_CARD f
 
@@ -100,9 +147,9 @@ def get_family_card_family(family_id):
         WHERE f.FAMILY_ID = :family_id
     """
 
-    return _json_safe_row(query_one(sql, {
+    return _add_family_labels(_json_safe_row(query_one(sql, {
         "family_id": family_id
-    }))
+    })))
 
 
 def get_family_card_students(family_id, study_year=None):
@@ -128,11 +175,6 @@ def get_family_card_students(family_id, study_year=None):
                 s.STUDENT_SURNAME_S AS student_surname_s,
 
                 s.STUDENT_GENDER AS student_gender,
-                CASE s.STUDENT_GENDER
-                    WHEN 1 THEN 'ط°ظƒط±'
-                    WHEN 2 THEN 'ط£ظ†ط«ظ‰'
-                    ELSE 'ط؛ظٹط± ظ…ط¹ط±ظˆظپ'
-                END AS student_gender_name,
                 s.BIRTH_DATE AS birth_date,
                 s.BIRTH_PLACE AS birth_place,
                 s.STUDENT_MOBILE AS student_mobile,
@@ -150,11 +192,6 @@ def get_family_card_students(family_id, study_year=None):
                 y.SECTION_ID AS section_id,
                 sec.SECTION_DESC AS section_name,
                 y.STUDENT_STATUS AS student_status,
-                CASE y.STUDENT_STATUS
-                    WHEN 1 THEN 'ظ…ط³طھظ…ط±'
-                    WHEN 2 THEN 'ط؛ظٹط± ظ…ط³طھظ…ط±'
-                    ELSE 'ط؛ظٹط± ظ…ط¹ط±ظˆظپ'
-                END AS student_status_name,
                 y.REGISTRATION_DATE AS registration_date,
                 y.WITHDRAW_DATE AS withdraw_date,
                 y.RENEW_STUDENT AS renew_student
@@ -183,10 +220,10 @@ def get_family_card_students(family_id, study_year=None):
                 s.STUDENT_ID
         """
 
-        return _json_safe_rows(query_all(sql, {
+        return _add_students_labels(_json_safe_rows(query_all(sql, {
             "family_id": family_id,
             "study_year": study_year
-        }))
+        })))
 
     sql = """
         SELECT
@@ -209,11 +246,6 @@ def get_family_card_students(family_id, study_year=None):
             s.STUDENT_SURNAME_S AS student_surname_s,
 
             s.STUDENT_GENDER AS student_gender,
-            CASE s.STUDENT_GENDER
-                WHEN 1 THEN 'ط°ظƒط±'
-                WHEN 2 THEN 'ط£ظ†ط«ظ‰'
-                ELSE 'ط؛ظٹط± ظ…ط¹ط±ظˆظپ'
-            END AS student_gender_name,
             s.BIRTH_DATE AS birth_date,
             s.BIRTH_PLACE AS birth_place,
             s.STUDENT_MOBILE AS student_mobile,
@@ -231,7 +263,6 @@ def get_family_card_students(family_id, study_year=None):
             NULL AS section_id,
             NULL AS section_name,
             NULL AS student_status,
-            NULL AS student_status_name,
             NULL AS registration_date,
             NULL AS withdraw_date,
             NULL AS renew_student
@@ -243,9 +274,9 @@ def get_family_card_students(family_id, study_year=None):
         ORDER BY s.STUDENT_ID
     """
 
-    return _json_safe_rows(query_all(sql, {
+    return _add_students_labels(_json_safe_rows(query_all(sql, {
         "family_id": family_id
-    }))
+    })))
 
 
 def get_family_card(family_id, study_year=None):
