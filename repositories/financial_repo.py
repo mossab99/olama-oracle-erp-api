@@ -143,20 +143,26 @@ def get_family_student_transactions(family_id, study_year):
                 s.STUDENT_SURNAME
             ) AS student_name,
             fs.TITLE_ID AS title_id,
-            TO_CHAR(fs.TITLE_ID) AS title,
+            fs.TITLE_TYPE AS title_type,
+            NVL(ft.TITLE_DESC, TO_CHAR(fs.TITLE_ID)) AS title,
+            ft.TITLE_DESC AS title_desc,
+            ft.TITLE_DESC_S AS title_desc_s,
             fs.TRANS_DATE AS trans_date,
             fs.RECEIPT_ID AS receipt_id,
             fs.DR_AMOUNT AS debit_amount,
             fs.CR_AMOUNT AS credit_amount,
             fs.NOTES AS notes,
             fs.TRANS_STATUS AS trans_status,
-            fs.TITLE_TYPE AS title_type,
             fs.BEGIN_YEAR AS begin_year
         FROM SCH_FIN_STUDENT_CARD fs
 
         LEFT JOIN SCH_STUDENT_CARD s
             ON s.FAMILY_ID = fs.FAMILY_ID
            AND s.STUDENT_ID = fs.STUDENT_ID
+
+        LEFT JOIN SCH_FEES_TITLES ft
+            ON ft.TITLE_ID = fs.TITLE_ID
+           AND ft.TITLE_TYPE = fs.TITLE_TYPE
 
         WHERE fs.FAMILY_ID = :family_id
           AND fs.STUDY_YEAR = :study_year
