@@ -7,6 +7,7 @@ from routes.families import families_bp
 from routes.students import students_bp
 from routes.financial import financial_bp
 from routes.transportation import transportation_bp
+from routes.family_card import family_card_bp
 
 
 def create_app():
@@ -19,6 +20,7 @@ def create_app():
     app.register_blueprint(students_bp)
     app.register_blueprint(financial_bp)
     app.register_blueprint(transportation_bp)
+    app.register_blueprint(family_card_bp)
 
     @app.route("/", methods=["GET"])
     def index():
