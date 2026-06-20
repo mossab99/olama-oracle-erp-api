@@ -56,10 +56,16 @@ def get_family_financial_summary(family_id, study_year):
         SELECT
             FAMILY_ID AS family_id,
             STUDY_YEAR AS study_year,
+            BEGIN_DR AS begin_debit,
             BEGIN_CR AS begin_credit,
             YEAR_DR AS year_debit,
             YEAR_CR AS year_credit,
-            BALANCE AS balance
+            (
+                NVL(BEGIN_DR, 0)
+                - NVL(BEGIN_CR, 0)
+                + NVL(YEAR_DR, 0)
+                - NVL(YEAR_CR, 0)
+            ) AS balance
         FROM SCH_FIN_FAMILY_CARD
         WHERE FAMILY_ID = :family_id
           AND STUDY_YEAR = :study_year
@@ -74,9 +80,14 @@ def get_family_financial_summary(family_id, study_year):
 def get_family_financial_students(family_id, study_year):
     sql = """
         SELECT
-            fs.FAMILY_ID AS family_id,
-            fs.STUDENT_ID AS student_id,
-            fs.STUDENT_ID_DESC AS student_name,
+            y.FAMILY_ID AS family_id,
+            y.STUDENT_ID AS student_id,
+            TRIM(
+                s.STUDENT_NAME_1 || ' ' ||
+                s.STUDENT_NAME_2 || ' ' ||
+                s.STUDENT_NAME_3 || ' ' ||
+                s.STUDENT_SURNAME
+            ) AS student_name,
             y.STUDY_YEAR AS study_year,
             y.SCHOOL_ID AS school_id,
             school.SCHOOL_DESC AS school_name,
@@ -85,23 +96,28 @@ def get_family_financial_students(family_id, study_year):
             y.SECTION_ID AS section_id,
             sec.SECTION_DESC AS section_name,
             y.STUDENT_STATUS AS student_status
-        FROM SCH_FIN_STUDENT_CARD fs
-        LEFT JOIN SCH_STUDENT_CARD_YEAR y
-            ON y.FAMILY_ID = fs.FAMILY_ID
-           AND y.STUDENT_ID = fs.STUDENT_ID
-           AND y.STUDY_YEAR = :study_year
+        FROM SCH_STUDENT_CARD_YEAR y
+
+        LEFT JOIN SCH_STUDENT_CARD s
+            ON s.FAMILY_ID = y.FAMILY_ID
+           AND s.STUDENT_ID = y.STUDENT_ID
+
         LEFT JOIN SCH_SCHOOL school
             ON school.SCHOOL_ID = y.SCHOOL_ID
+
         LEFT JOIN SCH_CLASSES cls
             ON cls.CLASS_ID = y.CLASS_ID
+
         LEFT JOIN SCH_SECTIONS sec
             ON sec.SECTION_ID = y.SECTION_ID
-        WHERE fs.FAMILY_ID = :family_id
-          AND fs.STUDY_YEAR = :study_year
+
+        WHERE y.FAMILY_ID = :family_id
+          AND y.STUDY_YEAR = :study_year
+
         ORDER BY
             cls.CLASS_ORDER,
             sec.SECTION_DESC,
-            fs.STUDENT_ID
+            y.STUDENT_ID
     """
 
     return _json_safe_rows(query_all(sql, {
@@ -118,7 +134,11 @@ def get_family_due_allocations(family_id, study_year):
             DUE_AMOUNT AS due_amount,
             PAID_AMOUNT AS paid_amount,
             RECEIPT_PAID AS receipt_paid,
-            BALANCE AS balance
+            (
+                NVL(DUE_AMOUNT, 0)
+                - NVL(PAID_AMOUNT, 0)
+                - NVL(RECEIPT_PAID, 0)
+            ) AS balance
         FROM SCH_FAMILY_DUE_ALLOC
         WHERE FAMILY_ID = :family_id
           AND STUDY_YEAR = :study_year
@@ -131,50 +151,42 @@ def get_family_due_allocations(family_id, study_year):
     }))
 
 
-def _find_student_transaction_table():
-    required_columns = {
-        "FAMILY_ID",
-        "STUDY_YEAR",
-        "STUDENT_ID",
-        "STUDENT_ID_DESC",
-        "TITLE_ID_DESC",
-        "TRANS_DATE",
-        "RECEIPT_ID",
-        "DR_AMOUNT",
-        "CR_AMOUNT",
-    }
-
-    for table_name in STUDENT_TRANSACTION_TABLES:
-        columns = _get_table_columns(table_name)
-
-        if required_columns.issubset(columns):
-            return table_name
-
-    return None
-
-
 def get_family_student_transactions(family_id, study_year):
-    table_name = _find_student_transaction_table()
-
-    if not table_name:
-        return []
-
-    sql = f"""
+    sql = """
         SELECT
-            STUDENT_ID AS student_id,
-            STUDENT_ID_DESC AS student_name,
-            TITLE_ID_DESC AS title,
-            TRANS_DATE AS trans_date,
-            RECEIPT_ID AS receipt_id,
-            DR_AMOUNT AS debit_amount,
-            CR_AMOUNT AS credit_amount
-        FROM {table_name}
-        WHERE FAMILY_ID = :family_id
-          AND STUDY_YEAR = :study_year
+            fs.SERIAL_ID AS serial_id,
+            fs.FAMILY_ID AS family_id,
+            fs.STUDENT_ID AS student_id,
+            TRIM(
+                s.STUDENT_NAME_1 || ' ' ||
+                s.STUDENT_NAME_2 || ' ' ||
+                s.STUDENT_NAME_3 || ' ' ||
+                s.STUDENT_SURNAME
+            ) AS student_name,
+            fs.TITLE_ID AS title_id,
+            TO_CHAR(fs.TITLE_ID) AS title,
+            fs.TRANS_DATE AS trans_date,
+            fs.RECEIPT_ID AS receipt_id,
+            fs.DR_AMOUNT AS debit_amount,
+            fs.CR_AMOUNT AS credit_amount,
+            fs.NOTES AS notes,
+            fs.TRANS_STATUS AS trans_status,
+            fs.TITLE_TYPE AS title_type,
+            fs.BEGIN_YEAR AS begin_year
+        FROM SCH_FIN_STUDENT_CARD fs
+
+        LEFT JOIN SCH_STUDENT_CARD s
+            ON s.FAMILY_ID = fs.FAMILY_ID
+           AND s.STUDENT_ID = fs.STUDENT_ID
+
+        WHERE fs.FAMILY_ID = :family_id
+          AND fs.STUDY_YEAR = :study_year
+
         ORDER BY
-            TRANS_DATE,
-            RECEIPT_ID,
-            STUDENT_ID
+            fs.TRANS_DATE,
+            fs.RECEIPT_ID,
+            fs.SERIAL_ID,
+            fs.STUDENT_ID
     """
 
     return _json_safe_rows(query_all(sql, {
