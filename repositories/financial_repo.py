@@ -4,12 +4,6 @@ from decimal import Decimal
 from db import query_all, query_one
 
 
-STUDENT_TRANSACTION_TABLES = (
-    "SCH_FIN_STUDENT_CARD_INC",
-    "SCH_FIN_STUDENT_CARD_INQ",
-)
-
-
 def _json_safe(value):
     if isinstance(value, (datetime, date)):
         return value.isoformat()
@@ -34,21 +28,6 @@ def _json_safe_row(row):
 
 def _json_safe_rows(rows):
     return [_json_safe_row(row) for row in rows]
-
-
-def _get_table_columns(table_name):
-    rows = query_all("""
-        SELECT column_name
-        FROM user_tab_columns
-        WHERE table_name = :table_name
-    """, {
-        "table_name": table_name
-    })
-
-    return {
-        row["column_name"].upper()
-        for row in rows
-    }
 
 
 def get_family_financial_summary(family_id, study_year):
