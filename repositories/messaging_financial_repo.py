@@ -111,6 +111,14 @@ def get_bulk_messaging_recipients(study_year, min_balance=None, class_id=None, s
 
     where_sql = " AND ".join(where_clauses)
 
+    # OFFICIAL BALANCE FORMULA SOURCE OF TRUTH
+    # The official aggregate family balance is queried from SCH_FIN_FAMILY_CARD:
+    # calc_balance = NVL(BEGIN_DR, 0) - NVL(BEGIN_CR, 0) + NVL(YEAR_DR, 0) - NVL(YEAR_CR, 0)
+    # This matches the family aggregate financial card screen in Oracle ERP.
+    # Note: The alternative formula (total_due_allocated - NVL(total_fin_payments, 0)) is
+    # a conceptual due reconciliation. Due allocation tables (SCH_FAMILY_DUE_ALLOC) are
+    # used specifically for calculating monthly_due and due_items, NOT for the main family balance
+    # to avoid double-counting or discrepancies with the official ERP ledger card.
     sql_families = f"""
         SELECT DISTINCT
             f.FAMILY_ID AS family_id,
@@ -128,14 +136,6 @@ def get_bulk_messaging_recipients(study_year, min_balance=None, class_id=None, s
             fin.BEGIN_CR AS begin_credit,
             fin.YEAR_DR AS year_debit,
             fin.YEAR_CR AS year_credit,
-            # OFFICIAL BALANCE FORMULA SOURCE OF TRUTH
-            # The official aggregate family balance is queried from SCH_FIN_FAMILY_CARD:
-            # calc_balance = NVL(BEGIN_DR, 0) - NVL(BEGIN_CR, 0) + NVL(YEAR_DR, 0) - NVL(YEAR_CR, 0)
-            # This matches the family aggregate financial card screen in Oracle ERP.
-            # Note: The alternative formula (total_due_allocated - NVL(total_fin_payments, 0)) is
-            # a conceptual due reconciliation. Due allocation tables (SCH_FAMILY_DUE_ALLOC) are
-            # used specifically for calculating monthly_due and due_items, NOT for the main family balance
-            # to avoid double-counting or discrepancies with the official ERP ledger card.
             (
                 NVL(fin.BEGIN_DR, 0)
                 - NVL(fin.BEGIN_CR, 0)
@@ -276,20 +276,20 @@ def get_single_family_financial_summary(family_id, study_year):
     """
     Lightweight financial lookup for a single family.
     """
+    # OFFICIAL BALANCE FORMULA SOURCE OF TRUTH
+    # The official aggregate family balance is queried from SCH_FIN_FAMILY_CARD:
+    # calc_balance = NVL(BEGIN_DR, 0) - NVL(BEGIN_CR, 0) + NVL(YEAR_DR, 0) - NVL(YEAR_CR, 0)
+    # This matches the family aggregate financial card screen in Oracle ERP.
+    # Note: The alternative formula (total_due_allocated - NVL(total_fin_payments, 0)) is
+    # a conceptual due reconciliation. Due allocation tables (SCH_FAMILY_DUE_ALLOC) are
+    # used specifically for calculating monthly_due and due_items, NOT for the main family balance
+    # to avoid double-counting or discrepancies with the official ERP ledger card.
     sql = """
         SELECT
             BEGIN_DR AS begin_debit,
             BEGIN_CR AS begin_credit,
             YEAR_DR AS year_debit,
             YEAR_CR AS year_credit,
-            # OFFICIAL BALANCE FORMULA SOURCE OF TRUTH
-            # The official aggregate family balance is queried from SCH_FIN_FAMILY_CARD:
-            # calc_balance = NVL(BEGIN_DR, 0) - NVL(BEGIN_CR, 0) + NVL(YEAR_DR, 0) - NVL(YEAR_CR, 0)
-            # This matches the family aggregate financial card screen in Oracle ERP.
-            # Note: The alternative formula (total_due_allocated - NVL(total_fin_payments, 0)) is
-            # a conceptual due reconciliation. Due allocation tables (SCH_FAMILY_DUE_ALLOC) are
-            # used specifically for calculating monthly_due and due_items, NOT for the main family balance
-            # to avoid double-counting or discrepancies with the official ERP ledger card.
             (
                 NVL(BEGIN_DR, 0)
                 - NVL(BEGIN_CR, 0)
@@ -407,21 +407,20 @@ def get_family_payment_report_payload(family_id, study_year):
             "section_name": _json_safe(st.get("section_name"))
         })
 
-    # Financial card
+    # OFFICIAL BALANCE FORMULA SOURCE OF TRUTH
+    # The official aggregate family balance is queried from SCH_FIN_FAMILY_CARD:
+    # calc_balance = NVL(BEGIN_DR, 0) - NVL(BEGIN_CR, 0) + NVL(YEAR_DR, 0) - NVL(YEAR_CR, 0)
+    # This matches the family aggregate financial card screen in Oracle ERP.
+    # Note: The alternative formula (total_due_allocated - NVL(total_fin_payments, 0)) is
+    # a conceptual due reconciliation. Due allocation tables (SCH_FAMILY_DUE_ALLOC) are
+    # used specifically for calculating monthly_due and due_items, NOT for the main family balance
+    # to avoid double-counting or discrepancies with the official ERP ledger card.
     sql_fin = """
         SELECT
             BEGIN_DR AS begin_debit,
             BEGIN_CR AS begin_credit,
             YEAR_DR AS year_debit,
             YEAR_CR AS year_credit,
-            # OFFICIAL BALANCE FORMULA SOURCE OF TRUTH
-            # The official aggregate family balance is queried from SCH_FIN_FAMILY_CARD:
-            # calc_balance = NVL(BEGIN_DR, 0) - NVL(BEGIN_CR, 0) + NVL(YEAR_DR, 0) - NVL(YEAR_CR, 0)
-            # This matches the family aggregate financial card screen in Oracle ERP.
-            # Note: The alternative formula (total_due_allocated - NVL(total_fin_payments, 0)) is
-            # a conceptual due reconciliation. Due allocation tables (SCH_FAMILY_DUE_ALLOC) are
-            # used specifically for calculating monthly_due and due_items, NOT for the main family balance
-            # to avoid double-counting or discrepancies with the official ERP ledger card.
             (
                 NVL(BEGIN_DR, 0)
                 - NVL(BEGIN_CR, 0)
