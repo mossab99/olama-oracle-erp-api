@@ -92,7 +92,7 @@ def get_last_payment(family_id, study_year):
     }
 
 
-def get_bulk_messaging_recipients(study_year, min_balance=None, class_id=None, section_id=None, family_id=None, limit=50, offset=0):
+def get_bulk_messaging_recipients(study_year, min_balance=None, class_id=None, section_id=None, class_name=None, section_name=None, family_id=None, limit=50, offset=0):
     """
     Bulk query recipients with financial summary.
     """
@@ -108,6 +108,12 @@ def get_bulk_messaging_recipients(study_year, min_balance=None, class_id=None, s
     if section_id:
         where_clauses.append("y.SECTION_ID = :section_id")
         params["section_id"] = int(section_id)
+    if class_name:
+        where_clauses.append("TRIM(cls.CLASS_DESC) = :class_name")
+        params["class_name"] = class_name.strip()
+    if section_name:
+        where_clauses.append("TRIM(sec.SECTION_DESC) = :section_name")
+        params["section_name"] = section_name.strip()
 
     where_sql = " AND ".join(where_clauses)
 
@@ -148,6 +154,10 @@ def get_bulk_messaging_recipients(study_year, min_balance=None, class_id=None, s
             ON y.FAMILY_ID = f.FAMILY_ID
            AND y.STUDY_YEAR = :study_year
            AND y.STUDENT_STATUS = 1
+        LEFT JOIN SCH_CLASSES cls
+            ON cls.CLASS_ID = y.CLASS_ID
+        LEFT JOIN SCH_SECTIONS sec
+            ON sec.SECTION_ID = y.SECTION_ID
         LEFT JOIN SCH_FIN_FAMILY_CARD fin
             ON fin.FAMILY_ID = f.FAMILY_ID
            AND fin.STUDY_YEAR = :study_year

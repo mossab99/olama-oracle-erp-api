@@ -27,6 +27,8 @@ def messaging_recipients():
         family_id = request.args.get("family_id")
         class_id = request.args.get("class_id")
         section_id = request.args.get("section_id")
+        class_name = (request.args.get("class_name") or "").strip() or None
+        section_name = (request.args.get("section_name") or "").strip() or None
 
         try:
             limit = max(1, int(request.args.get("limit", 50)))
@@ -43,6 +45,8 @@ def messaging_recipients():
             min_balance=min_balance,
             class_id=class_id,
             section_id=section_id,
+            class_name=class_name,
+            section_name=section_name,
             family_id=family_id,
             limit=limit,
             offset=offset
@@ -58,11 +62,11 @@ def messaging_recipients():
             "recipients": recipients
         })
 
-    except Exception as e:
+    except Exception:
         current_app.logger.exception("Messaging financial API error")
         return jsonify({
             "status": "error",
-            "message": "Internal server error: " + str(e)
+            "message": "Internal server error"
         }), 500
 
 
