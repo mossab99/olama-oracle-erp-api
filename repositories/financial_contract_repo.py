@@ -25,14 +25,18 @@ def _money(value):
     return None if value is None else float(value)
 
 
-def _integer(value):
+def _safe_int(value):
     return None if value is None else int(value)
 
 
-def _student_key(family_id, student_id):
+def _oracle_student_key(family_id, student_id):
     if family_id is None or student_id is None:
         return None
     return f"{int(family_id)}:{int(student_id)}"
+
+
+def _identity_scope(student_id):
+    return "student" if student_id is not None else "family"
 
 
 def _direction(debit, credit):
@@ -109,15 +113,20 @@ def get_family_summary_contract(family_id, study_year):
 
     students = []
     for row in student_rows:
+        family_id_value = _safe_int(row.get("family_id"))
+        student_id_value = _safe_int(row.get("student_id"))
         debit = _money(row.get("debit_total")) or 0.0
         credit = _money(row.get("credit_total")) or 0.0
         students.append({
-            "oracle_family_id": int(row["family_id"]),
-            "oracle_student_id": int(row["student_id"]),
-            "oracle_student_key": _student_key(row["family_id"], row["student_id"]),
+            "oracle_family_id": family_id_value,
+            "oracle_student_id": student_id_value,
+            "oracle_student_key": _oracle_student_key(
+                family_id_value, student_id_value
+            ),
+            "identity_scope": _identity_scope(student_id_value),
             "study_year": str(row["study_year"]),
-            "class_id": _integer(row.get("class_id")),
-            "section_id": _integer(row.get("section_id")),
+            "class_id": _safe_int(row.get("class_id")),
+            "section_id": _safe_int(row.get("section_id")),
             "student_status": _json_value(row.get("student_status")),
             "student_financial_available": int(row.get("trans_count") or 0) > 0,
             "balance": debit - credit,
@@ -220,8 +229,10 @@ def get_family_transactions(family_id, study_year, limit, offset, student_id=Non
 
 
 def _transaction_contract(row):
-    serial_id = _integer(row.get("serial_id"))
-    receipt_id = _integer(row.get("receipt_id"))
+    serial_id = _safe_int(row.get("serial_id"))
+    receipt_id = _safe_int(row.get("receipt_id"))
+    family_id = _safe_int(row.get("family_id"))
+    student_id = _safe_int(row.get("student_id"))
     receipt_unique = receipt_id is not None and int(row.get("receipt_count") or 0) == 1
     stable_key = None
     if serial_id is not None and int(row.get("serial_count") or 0) == 1:
@@ -234,7 +245,7 @@ def _transaction_contract(row):
     amount = debit if debit != 0 else credit
     trans_date = _json_value(row.get("trans_date"))
     missing = _missing_requirements(
-        stable_key, row.get("family_id"), amount, trans_date, row.get("study_year")
+        stable_key, family_id, amount, trans_date, row.get("study_year")
     )
     if credit > 0 and receipt_id is not None:
         trans_type = "receipt"
@@ -249,13 +260,14 @@ def _transaction_contract(row):
         "oracle_transaction_key": stable_key,
         "serial_id": serial_id,
         "receipt_id": receipt_id,
-        "oracle_family_id": int(row["family_id"]),
-        "oracle_student_id": int(row["student_id"]),
-        "oracle_student_key": _student_key(row["family_id"], row["student_id"]),
+        "oracle_family_id": family_id,
+        "oracle_student_id": student_id,
+        "oracle_student_key": _oracle_student_key(family_id, student_id),
+        "identity_scope": _identity_scope(student_id),
         "study_year": str(row["study_year"]),
         "transaction_date": trans_date,
         "transaction_type": trans_type,
-        "title_id": _integer(row.get("title_id")),
+        "title_id": _safe_int(row.get("title_id")),
         "title_type": _json_value(row.get("title_type")),
         "status": _json_value(row.get("trans_status")),
         "debit_amount": debit,
@@ -316,6 +328,7 @@ def get_family_dues(family_id, study_year, limit, offset):
             "oracle_family_id": int(row["family_id"]),
             "oracle_student_id": None,
             "oracle_student_key": None,
+            "identity_scope": "family",
             "study_year": str(row["study_year"]),
             "due_date": _json_value(row.get("due_date")),
             "title_id": None,
@@ -326,7 +339,7 @@ def get_family_dues(family_id, study_year, limit, offset):
             "remaining_amount": remaining,
             "status": status,
             "import_readiness": "NOT_IMPORT_READY",
-            "missing_requirements": ["stable_key", "student_identity_link"],
+            "missing_requirements": ["stable_key"],
             "source_table": SOURCE_DUES,
         })
     return dues
@@ -378,9 +391,9 @@ def get_family_receipts(family_id, study_year, limit, offset, student_id=None):
     rows = query_all(sql, params)
     receipts = []
     for row in rows:
-        receipt_id = _integer(row.get("receipt_id"))
-        family = _integer(row.get("family_id"))
-        student = _integer(row.get("student_id"))
+        receipt_id = _safe_int(row.get("receipt_id"))
+        family = _safe_int(row.get("family_id"))
+        student = _safe_int(row.get("student_id"))
         receipt_date = _json_value(row.get("receipt_date"))
         amount = _money(row.get("receipt_amount"))
         stable_key = f"receipt:{receipt_id}" if receipt_id is not None else None
@@ -390,10 +403,11 @@ def get_family_receipts(family_id, study_year, limit, offset, student_id=None):
         receipts.append({
             "oracle_receipt_key": stable_key,
             "receipt_id": receipt_id,
-            "serial_id": _integer(row.get("serial_id")) if int(row.get("line_count") or 0) == 1 else None,
+            "serial_id": _safe_int(row.get("serial_id")) if int(row.get("line_count") or 0) == 1 else None,
             "oracle_family_id": family,
             "oracle_student_id": student,
-            "oracle_student_key": _student_key(family, student),
+            "oracle_student_key": _oracle_student_key(family, student),
+            "identity_scope": _identity_scope(student),
             "study_year": str(row["study_year"]),
             "receipt_date": receipt_date,
             "receipt_amount": amount,
@@ -430,11 +444,16 @@ def get_student_financial_summary(family_id, student_id, study_year):
     credit = _money(row.get("credit_total")) or 0.0
     transactions = int(row.get("trans_count") or 0)
     receipts = int(row.get("receipt_count") or 0)
+    family_id_value = _safe_int(family_id)
+    student_id_value = _safe_int(student_id)
     return {
         "status": "ok",
-        "oracle_student_key": _student_key(family_id, student_id),
-        "oracle_family_id": int(family_id),
-        "oracle_student_id": int(student_id),
+        "oracle_student_key": _oracle_student_key(
+            family_id_value, student_id_value
+        ),
+        "oracle_family_id": family_id_value,
+        "oracle_student_id": student_id_value,
+        "identity_scope": _identity_scope(student_id_value),
         "study_year": study_year,
         "summary": {
             "due_total": None,

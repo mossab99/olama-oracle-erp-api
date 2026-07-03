@@ -176,6 +176,30 @@ class FinancialContractRepositoryTests(unittest.TestCase):
         self._assert_select_only_and_short_aliases(sql)
 
     @patch("repositories.financial_contract_repo.query_all")
+    def test_family_level_transaction_is_import_ready(self, query_all):
+        query_all.return_value = [{
+            "serial_id": 124,
+            "receipt_id": None,
+            "family_id": 459,
+            "student_id": None,
+            "study_year": "2025/2026",
+            "trans_date": date(2025, 9, 2),
+            "title_id": 1,
+            "title_type": 2,
+            "trans_status": 1,
+            "debit_amount": 25,
+            "credit_amount": 0,
+            "receipt_count": 0,
+            "serial_count": 1,
+        }]
+        row = get_family_transactions(459, "2025/2026", 5, 0)[0]
+        self.assertIsNone(row["oracle_student_id"])
+        self.assertIsNone(row["oracle_student_key"])
+        self.assertEqual(row["identity_scope"], "family")
+        self.assertEqual(row["import_readiness"], "IMPORT_READY")
+        self.assertEqual(row["missing_requirements"], [])
+
+    @patch("repositories.financial_contract_repo.query_all")
     def test_dues_are_not_ready_without_proven_stable_key(self, query_all):
         query_all.return_value = [{
             "family_id": 459,
@@ -209,6 +233,25 @@ class FinancialContractRepositoryTests(unittest.TestCase):
         self.assertEqual(rows[0]["oracle_student_key"], "459:3")
         self.assertNotIn("notes", rows[0])
         self._assert_select_only_and_short_aliases(query_all.call_args.args[0])
+
+    @patch("repositories.financial_contract_repo.query_all")
+    def test_family_level_receipt_has_nullable_student_identity(self, query_all):
+        query_all.return_value = [{
+            "receipt_id": 778,
+            "serial_id": 124,
+            "family_id": 459,
+            "student_id": None,
+            "study_year": "2025/2026",
+            "receipt_date": date(2025, 10, 2),
+            "receipt_amount": 50,
+            "trans_status": 1,
+            "line_count": 2,
+        }]
+        row = get_family_receipts(459, "2025/2026", 5, 0)[0]
+        self.assertIsNone(row["oracle_student_id"])
+        self.assertIsNone(row["oracle_student_key"])
+        self.assertEqual(row["identity_scope"], "family")
+        self.assertEqual(row["import_readiness"], "IMPORT_READY")
 
     def _assert_select_only_and_short_aliases(self, sql):
         upper_sql = sql.upper()
