@@ -6,6 +6,7 @@ from repositories.messaging_financial_repo import (
     get_single_family_financial_summary,
     get_family_payment_report_payload
 )
+from repositories.financial_contract_repo import get_family_summary_contract
 
 messaging_financial_bp = Blueprint("messaging_financial", __name__)
 
@@ -81,7 +82,8 @@ def family_financial_summary(family_id):
                 "status": "error",
                 "message": "Family not found or financial data unavailable"
             }), 404
-        return jsonify(data)
+        contract = get_family_summary_contract(family_id, study_year)
+        return jsonify({**data, **contract})
 
     except Exception as e:
         current_app.logger.exception("Messaging financial API error")
