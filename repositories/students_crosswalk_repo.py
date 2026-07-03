@@ -11,6 +11,19 @@ def _iso_dates(rows):
     return rows
 
 
+def _public_crosswalk_rows(rows):
+    for row in rows:
+        if "legacy_ref" in row:
+            row["immutable_legacy_billing_student_ref"] = row.pop("legacy_ref")
+    return rows
+
+
+def _public_diagnostics(diagnostics):
+    if "sid_reuse_families" in diagnostics:
+        diagnostics["student_id_values_reused_across_families"] = diagnostics.pop("sid_reuse_families")
+    return diagnostics
+
+
 def get_student_crosswalk(
     study_year=None,
     include_inactive=False,
@@ -66,7 +79,7 @@ def get_student_crosswalk(
                     y.REGISTRATION_DATE AS registration_date,
                     y.WITHDRAW_DATE AS withdraw_date,
                     CAST(NULL AS VARCHAR2(100))
-                        AS immutable_legacy_billing_student_ref,
+                        AS legacy_ref,
                     CAST(NULL AS VARCHAR2(100)) AS legacy_billing_student_id,
                     CAST(NULL AS VARCHAR2(100)) AS legacy_school_student_id
                 FROM SCH_STUDENT_CARD s
@@ -89,7 +102,7 @@ def get_student_crosswalk(
         WHERE rn > :offset
     """
 
-    return _iso_dates(query_all(sql, params))
+    return _public_crosswalk_rows(_iso_dates(query_all(sql, params)))
 
 
 def get_student_crosswalk_diagnostics(study_year=None):
@@ -130,7 +143,7 @@ def get_student_crosswalk_diagnostics(study_year=None):
         )
     """
     reused_sql = f"""
-        SELECT COUNT(*) AS student_id_values_reused_across_families
+        SELECT COUNT(*) AS sid_reuse_families
         FROM (
             SELECT s.STUDENT_ID
             FROM SCH_STUDENT_CARD s
@@ -149,7 +162,7 @@ def get_student_crosswalk_diagnostics(study_year=None):
 
     for key, value in diagnostics.items():
         diagnostics[key] = int(value or 0)
-    return diagnostics
+    return _public_diagnostics(diagnostics)
 
 
 def get_student_crosswalk_schema_candidates():
