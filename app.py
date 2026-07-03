@@ -5,6 +5,7 @@ from config import Config
 from routes.health import health_bp
 from routes.families import families_bp
 from routes.students import students_bp
+from routes.students_crosswalk import students_crosswalk_bp
 from routes.financial import financial_bp
 from routes.transportation import transportation_bp
 from routes.family_card import family_card_bp
@@ -21,6 +22,7 @@ def create_app():
     app.register_blueprint(health_bp)
     app.register_blueprint(families_bp)
     app.register_blueprint(students_bp)
+    app.register_blueprint(students_crosswalk_bp)
     app.register_blueprint(financial_bp)
     app.register_blueprint(transportation_bp)
     app.register_blueprint(family_card_bp)
@@ -48,6 +50,7 @@ def create_app():
                 "student_card": "/api/families/<family_id>/students/<student_id>/card?study_year=2026-2027",
                 "students": "/api/students",
                 "student_search": "/api/students/search?q=name",
+                "student_crosswalk": "/api/students/crosswalk?study_year=2025/2026&include_inactive=1",
                 "messaging_recipients": "/api/messaging/recipients?study_year=2025/2026",
                 "messaging_transportation_recipients": "/api/messaging/transportation/recipients?study_year=2025/2026",
                 "messaging_transportation_options": "/api/messaging/transportation/options?study_year=2025/2026",

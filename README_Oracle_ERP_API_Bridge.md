@@ -1151,3 +1151,39 @@ Laravel ERP = future replacement
 ```
 
 Do not write financial or registration changes back to Oracle until the business rules are fully analyzed and validated.
+
+# Student Crosswalk Endpoint
+
+`GET /api/students/crosswalk` provides a protected, read-only, non-PII student identity feed for WordPress/Core/Billing migration checks. It does not replace or alter `/api/students` or `/api/students/search`.
+
+Oracle `STUDENT_ID` is not globally unique. The authoritative source key is the composite `FAMILY_ID + STUDENT_ID`, exposed as `oracle_student_key` in `family_id:student_id` form.
+
+Supported query parameters:
+
+- `study_year`: optional exact study-year filter; omitted returns all available years.
+- `include_inactive`: defaults to `0`; accepts `1`, `true`, `yes`, or `y`.
+- `limit`: defaults to `500`, maximum `2000`.
+- `offset`: defaults to `0`.
+- `family_id`: optional integer filter.
+- `student_id`: optional integer filter.
+
+Returned fields are limited to Oracle family/student keys, study year, controlled status, class, section, school, branch, registration/withdrawal dates, and nullable legacy-reference placeholders. Student names, national numbers, mobile numbers, email, family address, parent contacts, and notes are excluded.
+
+Current limitation: `immutable_legacy_billing_student_ref`, `legacy_billing_student_id`, and `legacy_school_student_id` remain `null` until Oracle exposes an authoritative legacy reference.
+
+Diagnostics and metadata discovery:
+
+```text
+GET /api/students/crosswalk/diagnostics?study_year=2025%2F2026
+GET /api/students/crosswalk/schema-candidates
+```
+
+Example commands using fictional/local credentials:
+
+```bash
+curl -H "X-API-Key: olama" "http://localhost:5000/api/students/crosswalk?study_year=2025%2F2026&include_inactive=1&limit=10"
+curl -H "X-API-Key: olama" "http://localhost:5000/api/students/crosswalk/diagnostics?study_year=2025%2F2026"
+curl -H "X-API-Key: olama" "http://localhost:5000/api/students/crosswalk/schema-candidates"
+```
+
+WordPress/Billing financial migration must remain blocked until Billing records map to `oracle_student_key` or an approved reviewed crosswalk exists.
