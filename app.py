@@ -13,6 +13,7 @@ from routes.student_card import student_card_bp
 from routes.messaging_financial import messaging_financial_bp
 from routes.messaging_transportation import messaging_transportation_bp
 from routes.financial_contract import financial_contract_bp
+from routes.employees import employees_bp
 
 
 def create_app():
@@ -31,6 +32,7 @@ def create_app():
     app.register_blueprint(messaging_financial_bp)
     app.register_blueprint(messaging_transportation_bp)
     app.register_blueprint(financial_contract_bp)
+    app.register_blueprint(employees_bp)
 
     @app.route("/", methods=["GET"])
     def index():
@@ -58,7 +60,8 @@ def create_app():
                 "messaging_transportation_options": "/api/messaging/transportation/options?study_year=2025/2026",
                 "messaging_family_financial_summary": "/api/families/<family_id>/financial-summary?study_year=2025/2026",
                 "messaging_family_payment_report": "/api/families/<family_id>/payment-report?study_year=2025/2026",
-                "financial_diagnostics": "/api/financial/diagnostics?study_year=2025/2026"
+                "financial_diagnostics": "/api/financial/diagnostics?study_year=2025/2026",
+                "employees": "/api/employees?limit=100&offset=0"
             }
         })
 

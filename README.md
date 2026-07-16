@@ -155,6 +155,7 @@ Expected result:
 | GET | `/api/students` | Yes | All students for current year |
 | GET | `/api/students/{id}` | Yes | Single student |
 | GET | `/api/students/search?q=name` | Yes | Search students by name |
+| GET | `/api/employees?limit=100&offset=0` | Yes | Employees whose Oracle status is `مستمر` |
 
 ## Authentication
 

@@ -17,6 +17,13 @@ class Config:
 
     CURRENT_YEAR = os.getenv("CURRENT_YEAR", "2025/2026")
 
+    # HR_EMP_CARD may store the employee case as an Arabic description or as
+    # a numeric lookup ID. The repository resolves the lookup description
+    # automatically. Set this only when the Oracle schema has no discoverable
+    # status-description lookup table.
+    EMPLOYEE_ACTIVE_STATUS = os.getenv("EMPLOYEE_ACTIVE_STATUS", "مستمر")
+    EMPLOYEE_ACTIVE_STATUS_ID = os.getenv("EMPLOYEE_ACTIVE_STATUS_ID", "")
+
     API_SECRET_KEY = os.getenv("API_SECRET_KEY", "olama")
     API_HOST = os.getenv("API_HOST", "0.0.0.0")
     API_PORT = int(os.getenv("API_PORT", "5000"))
