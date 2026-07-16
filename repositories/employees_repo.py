@@ -185,10 +185,32 @@ def get_active_employees(limit=100, offset=0):
         raise RuntimeError("HR_EMP_CARD is missing EMP_ID or EMP_FULL_NAME")
 
     select_fields = []
+    enrichment_joins = []
     for alias, candidates in FIELD_CANDIDATES.items():
         column = _first_available(columns, candidates)
         if column:
             select_fields.append("e.{} AS {}".format(column, alias))
+        elif alias == "job_title" and "EMP_JOB_ID" in columns:
+            select_fields.append("job_lookup.JOB_DESC AS job_title")
+            job_conditions = ["job_lookup.JOB_ID = e.EMP_JOB_ID"]
+            if "COMPANY_ID" in columns:
+                job_conditions.append("job_lookup.COMPANY_ID = e.COMPANY_ID")
+            enrichment_joins.append(
+                "LEFT JOIN HR_GENERAL_JOB_TITLE job_lookup ON "
+                + " AND ".join(job_conditions)
+            )
+        elif alias == "certificate_grade" and "CERT_GRADE_ID" in columns:
+            select_fields.append("certificate_grade_lookup.GRADE_DESC AS certificate_grade")
+            enrichment_joins.append(
+                "LEFT JOIN HR_CERTIFICATE_GRADE certificate_grade_lookup "
+                "ON certificate_grade_lookup.GRADE_ID = e.CERT_GRADE_ID"
+            )
+        elif alias == "certificate_type" and "CERT_TYPE" in columns:
+            select_fields.append("certificate_type_lookup.CERT_DESC AS certificate_type")
+            enrichment_joins.append(
+                "LEFT JOIN HR_CERTIFICATE_TYPE certificate_type_lookup "
+                "ON certificate_type_lookup.CERT_ID = e.CERT_TYPE"
+            )
         else:
             select_fields.append("NULL AS {}".format(alias))
 
@@ -203,6 +225,7 @@ def get_active_employees(limit=100, offset=0):
                 SELECT
                     {select_fields}
                 FROM {employee_table} e
+                {enrichment_joins}
                 {join_sql}
                 WHERE {status_where}
                 ORDER BY e.{employee_id}
@@ -213,6 +236,7 @@ def get_active_employees(limit=100, offset=0):
     """.format(
         select_fields=",\n                    ".join(select_fields),
         employee_table=EMPLOYEE_TABLE,
+        enrichment_joins="\n                ".join(enrichment_joins),
         join_sql=join_sql,
         status_where=status_where,
         employee_id=employee_id,

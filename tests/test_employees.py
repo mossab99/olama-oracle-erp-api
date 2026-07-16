@@ -13,12 +13,13 @@ EMPLOYEE_COLUMNS = [
     {"column_name": "NATIONAL_NUMBER", "data_type": "VARCHAR2"},
     {"column_name": "BIRTH_DATE", "data_type": "DATE"},
     {"column_name": "EMP_GENDER", "data_type": "NUMBER"},
-    {"column_name": "EMP_JOB_ID_DESC", "data_type": "VARCHAR2"},
+    {"column_name": "COMPANY_ID", "data_type": "NUMBER"},
+    {"column_name": "EMP_JOB_ID", "data_type": "NUMBER"},
     {"column_name": "EMP_APPOINTMENT", "data_type": "DATE"},
     {"column_name": "EMP_ADDRESS", "data_type": "VARCHAR2"},
     {"column_name": "EMP_PHONES", "data_type": "VARCHAR2"},
-    {"column_name": "CERT_GRADE_ID_DESC", "data_type": "VARCHAR2"},
-    {"column_name": "CERT_TYPE_DESC", "data_type": "VARCHAR2"},
+    {"column_name": "CERT_GRADE_ID", "data_type": "NUMBER"},
+    {"column_name": "CERT_TYPE", "data_type": "NUMBER"},
     {"column_name": "CERT_DATE", "data_type": "DATE"},
     {"column_name": "CERT_AVERAGE", "data_type": "NUMBER"},
     {"column_name": "EMPLOYTE_CASE_DESC", "data_type": "VARCHAR2"},
@@ -81,6 +82,12 @@ class EmployeeRepositoryTests(unittest.TestCase):
         rows = get_active_employees(limit=10, offset=2)
         sql, params = query_all.call_args.args
         self.assertIn("TRIM(e.EMPLOYTE_CASE_DESC) = :active_status", sql)
+        self.assertIn("LEFT JOIN HR_GENERAL_JOB_TITLE job_lookup", sql)
+        self.assertIn("job_lookup.COMPANY_ID = e.COMPANY_ID", sql)
+        self.assertIn("LEFT JOIN HR_CERTIFICATE_GRADE certificate_grade_lookup", sql)
+        self.assertIn("certificate_grade_lookup.GRADE_ID = e.CERT_GRADE_ID", sql)
+        self.assertIn("LEFT JOIN HR_CERTIFICATE_TYPE certificate_type_lookup", sql)
+        self.assertIn("certificate_type_lookup.CERT_ID = e.CERT_TYPE", sql)
         self.assertIn("ROWNUM <= :max_row", sql)
         self.assertEqual(params["active_status"], "مستمر")
         self.assertEqual(params["max_row"], 12)
