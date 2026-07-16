@@ -91,6 +91,7 @@ class EmployeeRepositoryTests(unittest.TestCase):
     @patch("repositories.employees_repo.query_all")
     def test_resolves_numeric_status_through_lookup_table(self, query_all):
         columns = [
+            {"column_name": "COMPANY_ID", "data_type": "NUMBER"},
             {"column_name": "EMP_ID", "data_type": "NUMBER"},
             {"column_name": "EMP_FULL_NAME", "data_type": "VARCHAR2"},
             {"column_name": "EMPLOYTE_CASE_ID", "data_type": "NUMBER"},
@@ -104,6 +105,28 @@ class EmployeeRepositoryTests(unittest.TestCase):
         sql, params = query_all.call_args.args
         self.assertIn("LEFT JOIN HR_EMPLOYTE_CASE employee_case", sql)
         self.assertIn("TRIM(employee_case.EMPLOYTE_CASE_DESC) = :active_status", sql)
+        self.assertEqual(params["active_status"], "مستمر")
+
+    @patch("repositories.employees_repo.query_all")
+    def test_resolves_real_hr_employee_cases_lookup(self, query_all):
+        columns = [
+            {"column_name": "COMPANY_ID", "data_type": "NUMBER"},
+            {"column_name": "EMP_ID", "data_type": "NUMBER"},
+            {"column_name": "EMP_FULL_NAME", "data_type": "VARCHAR2"},
+            {"column_name": "EMPLOYEE_CASE_ID", "data_type": "NUMBER"},
+        ]
+        lookup_columns = [
+            {"column_name": "COMPANY_ID", "data_type": "NUMBER"},
+            {"column_name": "CASE_ID", "data_type": "NUMBER"},
+            {"column_name": "CASE_DESC", "data_type": "VARCHAR2"},
+        ]
+        query_all.side_effect = [columns, lookup_columns, []]
+        get_active_employees(limit=20, offset=0)
+        sql, params = query_all.call_args.args
+        self.assertIn("LEFT JOIN HR_EMPLOYEE_CASES employee_case", sql)
+        self.assertIn("employee_case.CASE_ID = e.EMPLOYEE_CASE_ID", sql)
+        self.assertIn("employee_case.COMPANY_ID = e.COMPANY_ID", sql)
+        self.assertIn("TRIM(employee_case.CASE_DESC) = :active_status", sql)
         self.assertEqual(params["active_status"], "مستمر")
 
 

@@ -119,6 +119,24 @@ def _status_sql(columns):
         )
 
     if status_id:
+        if status_id == "EMPLOYEE_CASE_ID":
+            lookup_columns = _table_columns("HR_EMPLOYEE_CASES")
+            if "CASE_ID" in lookup_columns and "CASE_DESC" in lookup_columns:
+                join_conditions = [
+                    "employee_case.CASE_ID = e.EMPLOYEE_CASE_ID"
+                ]
+                if "COMPANY_ID" in columns and "COMPANY_ID" in lookup_columns:
+                    join_conditions.append(
+                        "employee_case.COMPANY_ID = e.COMPANY_ID"
+                    )
+                return (
+                    "LEFT JOIN HR_EMPLOYEE_CASES employee_case ON "
+                    + " AND ".join(join_conditions),
+                    "employee_case.CASE_DESC AS employee_status",
+                    "TRIM(employee_case.CASE_DESC) = :active_status",
+                    {"active_status": Config.EMPLOYEE_ACTIVE_STATUS},
+                )
+
         lookup = _find_status_lookup()
         if lookup:
             table, lookup_id, lookup_desc = lookup
