@@ -46,6 +46,18 @@ def _first_column(columns, *candidates):
     return next((candidate for candidate in candidates if candidate in columns), None)
 
 
+def _first_prefixed(columns, *prefixes):
+    return next(
+        (
+            column
+            for prefix in prefixes
+            for column in sorted(columns)
+            if column.startswith(prefix)
+        ),
+        None,
+    )
+
+
 def _select_column(columns, alias, *candidates):
     column = _first_column(columns, *candidates)
     return "{} AS {}".format(column, alias) if column else "NULL AS {}".format(alias)
@@ -161,27 +173,61 @@ def get_transportation_buses():
         raise RuntimeError("SCH_BUS_IDS has no supported bus-number column")
 
     school_id = _first_column(columns, "BUS_SCHOOL_ID", "SCHOOL_ID")
-    oracle_id = (
-        "TO_CHAR({}) || ':' || TO_CHAR({})".format(school_id, bus_number)
-        if school_id
-        else "TO_CHAR({})".format(bus_number)
-    )
+    # BUS_SCHOOL_NUMBER is the identifier used by student transportation
+    # assignments. BUS_SCHOOL_ID is a separate, nullable school reference.
+    oracle_id = "TO_CHAR({})".format(bus_number)
+    plate_column = _first_column(
+        columns,
+        "BUS_LICENSE_NUM",
+        "BUS_LICENSE_NUMBER",
+        "BUS_LICENCE_NUM",
+        "BUS_LICENCE_NUMBER",
+    ) or _first_prefixed(columns, "BUS_LICENSE_NUM", "BUS_LICENCE_NUM")
+    last_renew_column = _first_column(
+        columns,
+        "LAST_RENEW_LICENSE",
+        "LAST_RENEW_LICI",
+        "LAST_RENEW_LICENCE",
+        "LAST_LICENSE_RENEWAL",
+    ) or _first_prefixed(columns, "LAST_RENEW_LIC")
+    next_renew_column = _first_column(
+        columns,
+        "NEXT_RENEW_LICENSE",
+        "NEXT_RENEW_LICI",
+        "NEXT_RENEW_LICENCE",
+        "NEXT_LICENSE_RENEWAL",
+    ) or _first_prefixed(columns, "NEXT_RENEW_LIC")
+
     selections = [
         "{} AS oracle_bus_id".format(oracle_id),
         "{} AS school_id".format(school_id) if school_id else "NULL AS school_id",
         "{} AS bus_number".format(bus_number),
         _select_column(columns, "description", "BUS_DESC"),
         _select_column(columns, "model", "BUS_MODEL"),
-        _select_column(columns, "plate_number", "BUS_LICENSE_NUM"),
-        _select_column(columns, "last_license_renewal", "LAST_RENEW_LICENSE"),
-        _select_column(columns, "next_license_renewal", "NEXT_RENEW_LICENSE"),
+        "{} AS plate_number".format(plate_column) if plate_column else "NULL AS plate_number",
+        "{} AS last_license_renewal".format(last_renew_column) if last_renew_column else "NULL AS last_license_renewal",
+        "{} AS next_license_renewal".format(next_renew_column) if next_renew_column else "NULL AS next_license_renewal",
         _select_column(columns, "government_number", "BUS_GOV_NUMBER"),
         _select_column(columns, "chassis_number", "BUS_SHUSI_NUMBER", "BUS_CHASSIS_NUMBER"),
         _select_column(columns, "registered_capacity", "BUS_CAPACITY"),
         _select_column(columns, "engine_capacity", "BUS_CC"),
         _select_column(columns, "fuel_type", "BUS_FUEL_TYPE", "FUEL_TYPE"),
         _select_column(columns, "driver_employee_id", "EMP_ID"),
+        _select_column(
+            columns,
+            "driver_employee_name",
+            "EMP_ID_DESC",
+            "EMP_DESC",
+            "DRIVER_NAME",
+        ),
         _select_column(columns, "companion_employee_id", "COMPANION_EMP_ID"),
+        _select_column(
+            columns,
+            "companion_employee_name",
+            "COMPANION_EMP_ID_DESC",
+            "COMPANION_EMP_DESC",
+            "COMPANION_NAME",
+        ),
         "1 AS is_active",
     ]
     sql = "SELECT\n    {}\nFROM SCH_BUS_IDS\nORDER BY {}".format(

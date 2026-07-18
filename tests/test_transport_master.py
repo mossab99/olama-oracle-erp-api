@@ -54,12 +54,16 @@ class TransportMasterRouteTests(unittest.TestCase):
 
 class TransportMasterRepositoryTests(unittest.TestCase):
     @patch("repositories.transportation_repo.query_all")
-    def test_bus_identity_is_composite_and_uses_confirmed_fields(self, query_all):
+    def test_bus_identity_uses_assignment_number_and_confirmed_fields(self, query_all):
         query_all.side_effect = [
             [
                 {"column_name": "BUS_SCHOOL_ID"},
                 {"column_name": "BUS_SCHOOL_NUMBER"},
                 {"column_name": "BUS_CAPACITY"},
+                {"column_name": "BUS_LICENSE_NUMBER"},
+                {"column_name": "LAST_RENEW_LICI"},
+                {"column_name": "NEXT_RENEW_LICI"},
+                {"column_name": "EMP_ID_DESC"},
             ],
             [],
         ]
@@ -69,6 +73,10 @@ class TransportMasterRepositoryTests(unittest.TestCase):
         self.assertIn("BUS_SCHOOL_NUMBER", sql)
         self.assertIn("AS oracle_bus_id", sql)
         self.assertIn("BUS_CAPACITY AS registered_capacity", sql)
+        self.assertIn("BUS_LICENSE_NUMBER AS plate_number", sql)
+        self.assertIn("LAST_RENEW_LICI AS last_license_renewal", sql)
+        self.assertIn("EMP_ID_DESC AS driver_employee_name", sql)
+        self.assertNotIn("|| ':' ||", sql)
 
     @patch("repositories.transportation_repo.query_all")
     def test_regions_use_bound_study_year(self, query_all):
