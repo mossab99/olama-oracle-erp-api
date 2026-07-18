@@ -73,7 +73,7 @@ class TransportMasterRepositoryTests(unittest.TestCase):
         self.assertIn("BUS_SCHOOL_NUMBER", sql)
         self.assertIn("AS oracle_bus_id", sql)
         self.assertIn("BUS_CAPACITY AS registered_capacity", sql)
-        self.assertIn("BUS_LICENSE_NUMBER AS plate_number", sql)
+        self.assertIn("BUS_LICENSE_NUMBER AS driver_license_number", sql)
         self.assertIn("LAST_RENEW_LICI AS last_license_renewal", sql)
         self.assertIn("EMP_ID_DESC AS driver_employee_name", sql)
         self.assertNotIn("|| ':' ||", sql)

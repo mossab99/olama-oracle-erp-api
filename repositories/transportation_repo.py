@@ -204,7 +204,7 @@ def get_transportation_buses():
         "{} AS bus_number".format(bus_number),
         _select_column(columns, "description", "BUS_DESC"),
         _select_column(columns, "model", "BUS_MODEL"),
-        "{} AS plate_number".format(plate_column) if plate_column else "NULL AS plate_number",
+        "{} AS driver_license_number".format(plate_column) if plate_column else "NULL AS driver_license_number",
         "{} AS last_license_renewal".format(last_renew_column) if last_renew_column else "NULL AS last_license_renewal",
         "{} AS next_license_renewal".format(next_renew_column) if next_renew_column else "NULL AS next_license_renewal",
         _select_column(columns, "government_number", "BUS_GOV_NUMBER"),
