@@ -30,6 +30,27 @@ def _json_safe_rows(rows):
     return [_json_safe_row(row) for row in rows]
 
 
+def _table_columns(table_name):
+    rows = query_all(
+        """
+        SELECT COLUMN_NAME
+        FROM USER_TAB_COLUMNS
+        WHERE TABLE_NAME = :table_name
+        """,
+        {"table_name": table_name},
+    )
+    return {str(row["column_name"]).upper() for row in rows}
+
+
+def _first_column(columns, *candidates):
+    return next((candidate for candidate in candidates if candidate in columns), None)
+
+
+def _select_column(columns, alias, *candidates):
+    column = _first_column(columns, *candidates)
+    return "{} AS {}".format(column, alias) if column else "NULL AS {}".format(alias)
+
+
 def get_family_transportation(family_id, study_year):
     sql = """
         SELECT
@@ -133,41 +154,62 @@ def get_family_transportation(family_id, study_year):
 
 
 def get_transportation_buses():
-    """Confirmed SCH_BUS_IDS master fields, normalized for Olama Core."""
-    sql = """
-        SELECT
-            b.BUS_SCHOOL_ID AS oracle_bus_id,
-            b.BUS_SCHOOL_NUM AS bus_number,
-            b.BUS_DESC AS description,
-            b.BUS_MODEL AS model,
-            b.BUS_LICENSE_NUM AS plate_number,
-            b.LAST_RENEW_LICENSE AS last_license_renewal,
-            b.NEXT_RENEW_LICENSE AS next_license_renewal,
-            b.BUS_GOV_NUMBER AS government_number,
-            b.BUS_SHUSI_NUMBER AS chassis_number,
-            b.BUS_CAPACITY AS registered_capacity,
-            b.BUS_CC AS engine_capacity,
-            b.EMP_ID AS driver_employee_id,
-            b.COMPANION_EMP_ID AS companion_employee_id,
-            1 AS is_active
-        FROM SCH_BUS_IDS b
-        ORDER BY b.BUS_SCHOOL_NUM
-    """
+    """Return the confirmed bus master while tolerating Forms item aliases."""
+    columns = _table_columns("SCH_BUS_IDS")
+    bus_number = _first_column(columns, "BUS_SCHOOL_NUMBER", "BUS_SCHOOL_NUM")
+    if not bus_number:
+        raise RuntimeError("SCH_BUS_IDS has no supported bus-number column")
+
+    school_id = _first_column(columns, "BUS_SCHOOL_ID", "SCHOOL_ID")
+    oracle_id = (
+        "TO_CHAR({}) || ':' || TO_CHAR({})".format(school_id, bus_number)
+        if school_id
+        else "TO_CHAR({})".format(bus_number)
+    )
+    selections = [
+        "{} AS oracle_bus_id".format(oracle_id),
+        "{} AS school_id".format(school_id) if school_id else "NULL AS school_id",
+        "{} AS bus_number".format(bus_number),
+        _select_column(columns, "description", "BUS_DESC"),
+        _select_column(columns, "model", "BUS_MODEL"),
+        _select_column(columns, "plate_number", "BUS_LICENSE_NUM"),
+        _select_column(columns, "last_license_renewal", "LAST_RENEW_LICENSE"),
+        _select_column(columns, "next_license_renewal", "NEXT_RENEW_LICENSE"),
+        _select_column(columns, "government_number", "BUS_GOV_NUMBER"),
+        _select_column(columns, "chassis_number", "BUS_SHUSI_NUMBER", "BUS_CHASSIS_NUMBER"),
+        _select_column(columns, "registered_capacity", "BUS_CAPACITY"),
+        _select_column(columns, "engine_capacity", "BUS_CC"),
+        _select_column(columns, "fuel_type", "BUS_FUEL_TYPE", "FUEL_TYPE"),
+        _select_column(columns, "driver_employee_id", "EMP_ID"),
+        _select_column(columns, "companion_employee_id", "COMPANION_EMP_ID"),
+        "1 AS is_active",
+    ]
+    sql = "SELECT\n    {}\nFROM SCH_BUS_IDS\nORDER BY {}".format(
+        ",\n    ".join(selections),
+        bus_number,
+    )
     return _json_safe_rows(query_all(sql))
 
 
 def get_transportation_regions(study_year):
-    """Region demand projection used only by Oracle Sync to populate Core."""
+    """Build source-region demand from proven family and student-year tables."""
     sql = """
         SELECT
-            t.TRANS_REGION_ID AS oracle_region_id,
-            MIN(t.FAMILY_ADDRESS) AS sample_address,
-            COUNT(DISTINCT t.FAMILY_ID) AS family_count,
-            COUNT(*) AS student_count
-        FROM SCH_STUDENT_TOT_TRANS t
-        WHERE t.STUDY_YEAR = :study_year
-          AND t.TRANS_REGION_ID IS NOT NULL
-        GROUP BY t.TRANS_REGION_ID
-        ORDER BY t.TRANS_REGION_ID
+            f.TRANS_REGION_ID AS oracle_region_id,
+            MIN(tr.REGION_DESC) AS region_name,
+            MIN(f.FAMILY_ADDRESS) AS sample_address,
+            COUNT(DISTINCT f.FAMILY_ID) AS family_count,
+            COUNT(DISTINCT TO_CHAR(y.FAMILY_ID) || ':' || TO_CHAR(y.STUDENT_ID))
+                AS student_count
+        FROM SCH_FAMILY_CARD f
+        LEFT JOIN SCH_TRANS_REGIONS tr
+            ON tr.REGION_ID = f.TRANS_REGION_ID
+        LEFT JOIN SCH_STUDENT_CARD_YEAR y
+            ON y.FAMILY_ID = f.FAMILY_ID
+           AND y.STUDY_YEAR = :study_year
+           AND y.STUDENT_STATUS = 1
+        WHERE f.TRANS_REGION_ID IS NOT NULL
+        GROUP BY f.TRANS_REGION_ID
+        ORDER BY f.TRANS_REGION_ID
     """
     return _json_safe_rows(query_all(sql, {"study_year": study_year}))

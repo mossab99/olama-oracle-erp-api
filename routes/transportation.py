@@ -77,8 +77,5 @@ def family_transportation(family_id):
             "transportation": transportation
         })
 
-    except Exception as e:
-        return jsonify({
-            "status": "error",
-            "message": str(e)
-        }), 500
+    except Exception:
+        return _safe_error()

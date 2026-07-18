@@ -3,6 +3,10 @@ from unittest.mock import patch
 
 from app import create_app
 from config import Config
+from repositories.transportation_repo import (
+    get_transportation_buses,
+    get_transportation_regions,
+)
 
 
 class TransportMasterRouteTests(unittest.TestCase):
@@ -46,6 +50,34 @@ class TransportMasterRouteTests(unittest.TestCase):
         )
         self.assertEqual(response.status_code, 200)
         get_regions.assert_called_once_with("2026/2027")
+
+
+class TransportMasterRepositoryTests(unittest.TestCase):
+    @patch("repositories.transportation_repo.query_all")
+    def test_bus_identity_is_composite_and_uses_confirmed_fields(self, query_all):
+        query_all.side_effect = [
+            [
+                {"column_name": "BUS_SCHOOL_ID"},
+                {"column_name": "BUS_SCHOOL_NUMBER"},
+                {"column_name": "BUS_CAPACITY"},
+            ],
+            [],
+        ]
+        get_transportation_buses()
+        sql = query_all.call_args_list[1].args[0]
+        self.assertIn("BUS_SCHOOL_ID", sql)
+        self.assertIn("BUS_SCHOOL_NUMBER", sql)
+        self.assertIn("AS oracle_bus_id", sql)
+        self.assertIn("BUS_CAPACITY AS registered_capacity", sql)
+
+    @patch("repositories.transportation_repo.query_all")
+    def test_regions_use_bound_study_year(self, query_all):
+        query_all.return_value = []
+        get_transportation_regions("2026/2027")
+        sql, binds = query_all.call_args.args
+        self.assertIn("SCH_FAMILY_CARD", sql)
+        self.assertIn("SCH_STUDENT_CARD_YEAR", sql)
+        self.assertEqual(binds, {"study_year": "2026/2027"})
 
 
 if __name__ == "__main__":
