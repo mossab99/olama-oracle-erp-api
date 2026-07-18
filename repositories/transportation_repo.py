@@ -130,3 +130,44 @@ def get_family_transportation(family_id, study_year):
         "family_id": family_id,
         "study_year": study_year
     }))
+
+
+def get_transportation_buses():
+    """Confirmed SCH_BUS_IDS master fields, normalized for Olama Core."""
+    sql = """
+        SELECT
+            b.BUS_SCHOOL_ID AS oracle_bus_id,
+            b.BUS_SCHOOL_NUM AS bus_number,
+            b.BUS_DESC AS description,
+            b.BUS_MODEL AS model,
+            b.BUS_LICENSE_NUM AS plate_number,
+            b.LAST_RENEW_LICENSE AS last_license_renewal,
+            b.NEXT_RENEW_LICENSE AS next_license_renewal,
+            b.BUS_GOV_NUMBER AS government_number,
+            b.BUS_SHUSI_NUMBER AS chassis_number,
+            b.BUS_CAPACITY AS registered_capacity,
+            b.BUS_CC AS engine_capacity,
+            b.EMP_ID AS driver_employee_id,
+            b.COMPANION_EMP_ID AS companion_employee_id,
+            1 AS is_active
+        FROM SCH_BUS_IDS b
+        ORDER BY b.BUS_SCHOOL_NUM
+    """
+    return _json_safe_rows(query_all(sql))
+
+
+def get_transportation_regions(study_year):
+    """Region demand projection used only by Oracle Sync to populate Core."""
+    sql = """
+        SELECT
+            t.TRANS_REGION_ID AS oracle_region_id,
+            MIN(t.FAMILY_ADDRESS) AS sample_address,
+            COUNT(DISTINCT t.FAMILY_ID) AS family_count,
+            COUNT(*) AS student_count
+        FROM SCH_STUDENT_TOT_TRANS t
+        WHERE t.STUDY_YEAR = :study_year
+          AND t.TRANS_REGION_ID IS NOT NULL
+        GROUP BY t.TRANS_REGION_ID
+        ORDER BY t.TRANS_REGION_ID
+    """
+    return _json_safe_rows(query_all(sql, {"study_year": study_year}))

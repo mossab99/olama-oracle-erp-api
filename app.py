@@ -51,6 +51,8 @@ def create_app():
                 "families": "/api/families",
                 "family_financial_card": "/api/families/<family_id>/financial-card",
                 "family_transportation": "/api/families/<family_id>/transportation?study_year=2025/2026",
+                "transportation_buses": "/api/transportation/buses",
+                "transportation_regions": "/api/transportation/regions?study_year=2025/2026",
                 "student_card": "/api/families/<family_id>/students/<student_id>/card?study_year=2026-2027",
                 "students": "/api/students",
                 "student_search": "/api/students/search?q=name",
