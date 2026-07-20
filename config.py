@@ -20,5 +20,11 @@ class Config:
     API_SECRET_KEY = os.getenv("API_SECRET_KEY", "olama")
     API_HOST = os.getenv("API_HOST", "0.0.0.0")
     API_PORT = int(os.getenv("API_PORT", "5000"))
+    API_DEBUG = os.getenv("API_DEBUG", "0").lower() in ("1", "true", "yes")
+    API_ALLOWED_ORIGINS = [
+        item.strip()
+        for item in os.getenv("API_ALLOWED_ORIGINS", "").split(",")
+        if item.strip()
+    ]
 
     ORACLE_CLIENT_DIR = os.getenv("ORACLE_CLIENT_DIR", "")

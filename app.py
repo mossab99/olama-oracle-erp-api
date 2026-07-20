@@ -18,7 +18,11 @@ from routes.financial_contract import financial_contract_bp
 def create_app():
     app = Flask(__name__)
 
-    CORS(app)
+    if Config.API_ALLOWED_ORIGINS:
+        CORS(
+            app,
+            resources={r"/api/*": {"origins": Config.API_ALLOWED_ORIGINS}},
+        )
 
     app.register_blueprint(health_bp)
     app.register_blueprint(families_bp)
@@ -49,6 +53,11 @@ def create_app():
                 "families": "/api/families",
                 "family_financial_card": "/api/families/<family_id>/financial-card",
                 "family_transportation": "/api/families/<family_id>/transportation?study_year=2025/2026",
+                "transportation_students": "/api/transportation/students?study_year=2025/2026&limit=500&offset=0",
+                "transportation_buses": "/api/transportation/buses?include_inactive=1",
+                "transportation_regions": "/api/transportation/regions?study_year=2025/2026",
+                "transportation_employees": "/api/transportation/employees",
+                "transportation_summary": "/api/transportation/summary?study_year=2025/2026",
                 "student_card": "/api/families/<family_id>/students/<student_id>/card?study_year=2026-2027",
                 "students": "/api/students",
                 "student_search": "/api/students/search?q=name",
@@ -71,5 +80,5 @@ if __name__ == "__main__":
     app.run(
         host=Config.API_HOST,
         port=Config.API_PORT,
-        debug=True
+        debug=Config.API_DEBUG
     )
