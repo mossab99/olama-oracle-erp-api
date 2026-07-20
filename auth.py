@@ -1,4 +1,5 @@
 from functools import wraps
+import hmac
 from flask import request, jsonify
 from config import Config
 
@@ -14,7 +15,9 @@ def require_api_key(func):
                 "message": "Missing X-API-Key header"
             }), 401
 
-        if api_key != Config.API_SECRET_KEY:
+        if not Config.API_SECRET_KEY or not hmac.compare_digest(
+            str(api_key), str(Config.API_SECRET_KEY)
+        ):
             return jsonify({
                 "status": "error",
                 "message": "Invalid API key"
