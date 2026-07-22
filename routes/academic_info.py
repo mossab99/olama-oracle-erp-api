@@ -1,4 +1,4 @@
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, current_app, jsonify, request
 
 from auth import require_api_key
 from repositories.academic_info_repo import (
@@ -42,6 +42,7 @@ def _response(key, loader, study_year=None):
             payload["study_year"] = study_year
         return jsonify(payload)
     except Exception:
+        current_app.logger.exception("Academic endpoint failed: %s", request.path)
         return jsonify({
             "status": "error",
             "message": "Unable to retrieve academic information",
@@ -111,6 +112,7 @@ def academic_snapshot():
     except ValueError as exc:
         return jsonify({"status": "error", "message": str(exc)}), 400
     except Exception:
+        current_app.logger.exception("Academic snapshot failed")
         return jsonify({
             "status": "error",
             "message": "Unable to retrieve academic information",

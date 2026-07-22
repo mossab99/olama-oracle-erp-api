@@ -83,6 +83,27 @@ class AcademicInfoRepositoryTests(unittest.TestCase):
         self.assertIn("link.SUBJECT_ID_DESC AS subject_name", sql)
         self.assertEqual(params["study_year"], "2026-2027")
 
+    @patch("repositories.academic_info_repo.query_all")
+    def test_subject_query_supports_parent_grade_block(self, query_all):
+        query_all.side_effect = [
+            [
+                {"table_name": "SCH_MRK_AVE_PARAM", "column_name": "LAW_ID"},
+                {"table_name": "SCH_MRK_AVE_PARAM", "column_name": "CLASS_ID"},
+                {"table_name": "SCH_MRK_CLS_SUBJECTS_M", "column_name": "LAW_ID"},
+                {"table_name": "SCH_MRK_CLS_SUBJECTS_M", "column_name": "SUBJECT_ID"},
+                {"table_name": "SCH_SUBJECTS", "column_name": "SUBJECT_ID"},
+                {"table_name": "SCH_SUBJECTS", "column_name": "SUBJECT_DESC"},
+            ],
+            [],
+        ]
+        get_grade_subjects("2026-2027")
+        sql, params = query_all.call_args_list[1].args
+        self.assertIn("JOIN SCH_MRK_AVE_PARAM grade_param", sql)
+        self.assertIn("grade_param.LAW_ID = link.LAW_ID", sql)
+        self.assertIn("grade_param.CLASS_ID AS grade_id", sql)
+        self.assertIn("LEFT JOIN SCH_SUBJECTS subject", sql)
+        self.assertEqual(params["study_year"], "2026-2027")
+
 
 if __name__ == "__main__":
     unittest.main()
