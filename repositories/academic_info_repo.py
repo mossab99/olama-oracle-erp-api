@@ -100,6 +100,7 @@ def _grade_subject_schema():
         FROM user_tab_columns
         WHERE table_name LIKE 'SCH_MRK_CLS_SUBJECTS%'
            OR table_name = 'SCH_MRK_AVE_PARAM'
+           OR table_name = 'SCH_MRK_LAWS'
            OR (table_name LIKE 'SCH%SUBJECT%' AND table_name NOT LIKE 'SCH_MRK_CLS_SUBJECTS%')
         ORDER BY table_name, column_id
     """)
@@ -124,6 +125,9 @@ def _grade_subject_schema():
     detail_candidates.sort(key=lambda item: ("STUDY_YEAR" not in item[1], item[0]))
     detail_table, detail_columns = detail_candidates[0]
     parent_columns = columns_by_table.get("SCH_MRK_AVE_PARAM", set())
+    law_columns = columns_by_table.get("SCH_MRK_LAWS", set())
+    if "LAW_ID" not in law_columns:
+        raise RuntimeError("Oracle grading-law source has no LAW_ID")
 
     parent_join = ""
     grade_expression = "link.CLASS_ID"
@@ -148,6 +152,27 @@ def _grade_subject_schema():
         grade_expression = "grade_param.CLASS_ID"
         grade_columns = parent_columns
         grade_alias = "grade_param"
+
+    if "LAW_ID" in detail_columns:
+        law_expression = "link.LAW_ID"
+    elif parent_join and "LAW_ID" in parent_columns:
+        law_expression = "grade_param.LAW_ID"
+    else:
+        raise RuntimeError("Oracle grade-subject source has no LAW_ID relationship")
+
+    law_active_filter = (
+        "WHERE NVL(active_law.IS_ACTIVE, 1) = 1"
+        if "IS_ACTIVE" in law_columns else ""
+    )
+    law_join = f"""
+        JOIN SCH_MRK_LAWS laws
+          ON laws.LAW_ID = {law_expression}
+         AND laws.LAW_ID = (
+             SELECT MAX(active_law.LAW_ID)
+             FROM SCH_MRK_LAWS active_law
+             {law_active_filter}
+         )
+    """
 
     subject_name = None
     subject_join = ""
@@ -189,6 +214,8 @@ def _grade_subject_schema():
         "grade_expression": grade_expression,
         "grade_columns": grade_columns,
         "grade_alias": grade_alias,
+        "law_expression": law_expression,
+        "law_join": law_join,
         "subject_join": subject_join,
         "subject_name": subject_name,
     }
@@ -197,22 +224,12 @@ def _grade_subject_schema():
 def get_grade_subjects(study_year):
     schema = _grade_subject_schema()
     columns = schema["detail_columns"]
-    grade_columns = schema["grade_columns"]
-    grade_alias = schema["grade_alias"]
-    if "STUDY_YEAR" in columns:
-        year_filter = "AND link.STUDY_YEAR = :study_year"
-        year_select = "link.STUDY_YEAR"
-    elif "STUDY_YEAR" in grade_columns:
-        year_filter = f"AND {grade_alias}.STUDY_YEAR = :study_year"
-        year_select = f"{grade_alias}.STUDY_YEAR"
-    else:
-        year_filter = ""
-        year_select = ":study_year"
     active_expression = "NVL(link.IS_ACTIVE, 1)" if "IS_ACTIVE" in columns else "1"
 
     return _rows(f"""
         SELECT
             academic_rows.study_year,
+            academic_rows.law_id,
             academic_rows.grade_id,
             MAX(academic_rows.grade_name) AS grade_name,
             academic_rows.subject_id,
@@ -220,7 +237,8 @@ def get_grade_subjects(study_year):
             MAX(academic_rows.is_active) AS is_active
         FROM (
             SELECT
-                {year_select} AS study_year,
+                :study_year AS study_year,
+                {schema['law_expression']} AS law_id,
                 {schema['grade_expression']} AS grade_id,
                 cls.CLASS_DESC AS grade_name,
                 link.SUBJECT_ID AS subject_id,
@@ -228,14 +246,15 @@ def get_grade_subjects(study_year):
                 {active_expression} AS is_active
             FROM {schema['detail_table']} link
             {schema['parent_join']}
+            {schema['law_join']}
             LEFT JOIN SCH_CLASSES cls ON cls.CLASS_ID = {schema['grade_expression']}
             {schema['subject_join']}
             WHERE {schema['grade_expression']} IS NOT NULL
               AND link.SUBJECT_ID IS NOT NULL
-              {year_filter}
         ) academic_rows
         GROUP BY
             academic_rows.study_year,
+            academic_rows.law_id,
             academic_rows.grade_id,
             academic_rows.subject_id
         ORDER BY

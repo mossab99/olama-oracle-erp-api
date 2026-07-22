@@ -70,21 +70,29 @@ class AcademicInfoRepositoryTests(unittest.TestCase):
         query_all.side_effect = [
             [
                 {"table_name": "SCH_MRK_CLS_SUBJECTS_M", "column_name": "STUDY_YEAR"},
+                {"table_name": "SCH_MRK_CLS_SUBJECTS_M", "column_name": "LAW_ID"},
                 {"table_name": "SCH_MRK_CLS_SUBJECTS_M", "column_name": "CLASS_ID"},
                 {"table_name": "SCH_MRK_CLS_SUBJECTS_M", "column_name": "SUBJECT_ID"},
                 {"table_name": "SCH_MRK_CLS_SUBJECTS_M", "column_name": "SUBJECT_ID_DESC"},
                 {"table_name": "SCH_MRK_CLS_SUBJECTS_M", "column_name": "IS_ACTIVE"},
+                {"table_name": "SCH_MRK_LAWS", "column_name": "LAW_ID"},
+                {"table_name": "SCH_MRK_LAWS", "column_name": "IS_ACTIVE"},
             ],
             [],
         ]
         get_grade_subjects("2026-2027")
         sql, params = query_all.call_args_list[1].args
         self.assertIn("FROM SCH_MRK_CLS_SUBJECTS_M link", sql)
-        self.assertIn("link.STUDY_YEAR = :study_year", sql)
+        self.assertIn(":study_year AS study_year", sql)
         self.assertIn("link.SUBJECT_ID_DESC AS subject_name", sql)
         self.assertIn("NVL(link.IS_ACTIVE, 1) AS is_active", sql)
         self.assertIn("MAX(academic_rows.is_active) DESC", sql)
         self.assertIn("GROUP BY", sql)
+        self.assertIn("JOIN SCH_MRK_LAWS laws", sql)
+        self.assertIn("laws.LAW_ID = link.LAW_ID", sql)
+        self.assertIn("SELECT MAX(active_law.LAW_ID)", sql)
+        self.assertIn("WHERE NVL(active_law.IS_ACTIVE, 1) = 1", sql)
+        self.assertIn("academic_rows.law_id", sql)
         self.assertIn("academic_rows.grade_id", sql)
         self.assertIn("academic_rows.subject_id", sql)
         self.assertNotIn("NVL(link.IS_ACTIVE, 1) = 1", sql)
@@ -100,6 +108,8 @@ class AcademicInfoRepositoryTests(unittest.TestCase):
                 {"table_name": "SCH_MRK_CLS_SUBJECTS_M", "column_name": "SUBJECT_ID"},
                 {"table_name": "SCH_SUBJECTS", "column_name": "SUBJECT_ID"},
                 {"table_name": "SCH_SUBJECTS", "column_name": "SUBJECT_DESC"},
+                {"table_name": "SCH_MRK_LAWS", "column_name": "LAW_ID"},
+                {"table_name": "SCH_MRK_LAWS", "column_name": "IS_ACTIVE"},
             ],
             [],
         ]
@@ -107,6 +117,7 @@ class AcademicInfoRepositoryTests(unittest.TestCase):
         sql, params = query_all.call_args_list[1].args
         self.assertIn("JOIN SCH_MRK_AVE_PARAM grade_param", sql)
         self.assertIn("grade_param.LAW_ID = link.LAW_ID", sql)
+        self.assertIn("laws.LAW_ID = link.LAW_ID", sql)
         self.assertIn("grade_param.CLASS_ID AS grade_id", sql)
         self.assertIn("LEFT JOIN SCH_SUBJECTS subject", sql)
         self.assertEqual(params["study_year"], "2026-2027")
