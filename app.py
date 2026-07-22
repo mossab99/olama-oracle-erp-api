@@ -14,6 +14,7 @@ from routes.messaging_financial import messaging_financial_bp
 from routes.messaging_transportation import messaging_transportation_bp
 from routes.financial_contract import financial_contract_bp
 from routes.employees import employees_bp
+from routes.academic_info import academic_info_bp
 
 
 def create_app():
@@ -37,6 +38,7 @@ def create_app():
     app.register_blueprint(messaging_transportation_bp)
     app.register_blueprint(financial_contract_bp)
     app.register_blueprint(employees_bp)
+    app.register_blueprint(academic_info_bp)
 
     @app.route("/", methods=["GET"])
     def index():
@@ -70,7 +72,13 @@ def create_app():
                 "messaging_family_financial_summary": "/api/families/<family_id>/financial-summary?study_year=2025/2026",
                 "messaging_family_payment_report": "/api/families/<family_id>/payment-report?study_year=2025/2026",
                 "financial_diagnostics": "/api/financial/diagnostics?study_year=2025/2026",
-                "employees": "/api/employees?limit=100&offset=0"
+                "employees": "/api/employees?limit=100&offset=0",
+                "academic_grades": "/api/academic/grades",
+                "academic_sections": "/api/academic/sections",
+                "academic_grade_sections": "/api/academic/grade-sections?study_year=2025/2026",
+                "academic_students": "/api/academic/students?study_year=2025/2026&grade_id=1&section_id=1",
+                "academic_grade_subjects": "/api/academic/grade-subjects?study_year=2025/2026",
+                "academic_snapshot": "/api/academic/snapshot?study_year=2025/2026"
             }
         })
 
