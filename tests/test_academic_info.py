@@ -83,7 +83,10 @@ class AcademicInfoRepositoryTests(unittest.TestCase):
         self.assertIn("link.STUDY_YEAR = :study_year", sql)
         self.assertIn("link.SUBJECT_ID_DESC AS subject_name", sql)
         self.assertIn("NVL(link.IS_ACTIVE, 1) AS is_active", sql)
-        self.assertIn("NVL(link.IS_ACTIVE, 1) DESC", sql)
+        self.assertIn("MAX(academic_rows.is_active) DESC", sql)
+        self.assertIn("GROUP BY", sql)
+        self.assertIn("academic_rows.grade_id", sql)
+        self.assertIn("academic_rows.subject_id", sql)
         self.assertNotIn("NVL(link.IS_ACTIVE, 1) = 1", sql)
         self.assertEqual(params["study_year"], "2026-2027")
 

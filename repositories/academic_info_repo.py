@@ -211,21 +211,37 @@ def get_grade_subjects(study_year):
     active_expression = "NVL(link.IS_ACTIVE, 1)" if "IS_ACTIVE" in columns else "1"
 
     return _rows(f"""
-        SELECT DISTINCT
-            {year_select} AS study_year,
-            {schema['grade_expression']} AS grade_id,
-            cls.CLASS_DESC AS grade_name,
-            link.SUBJECT_ID AS subject_id,
-            {schema['subject_name']} AS subject_name,
-            {active_expression} AS is_active
-        FROM {schema['detail_table']} link
-        {schema['parent_join']}
-        LEFT JOIN SCH_CLASSES cls ON cls.CLASS_ID = {schema['grade_expression']}
-        {schema['subject_join']}
-        WHERE {schema['grade_expression']} IS NOT NULL
-          AND link.SUBJECT_ID IS NOT NULL
-          {year_filter}
-        ORDER BY {schema['grade_expression']}, {active_expression} DESC, link.SUBJECT_ID
+        SELECT
+            academic_rows.study_year,
+            academic_rows.grade_id,
+            MAX(academic_rows.grade_name) AS grade_name,
+            academic_rows.subject_id,
+            MAX(academic_rows.subject_name) AS subject_name,
+            MAX(academic_rows.is_active) AS is_active
+        FROM (
+            SELECT
+                {year_select} AS study_year,
+                {schema['grade_expression']} AS grade_id,
+                cls.CLASS_DESC AS grade_name,
+                link.SUBJECT_ID AS subject_id,
+                {schema['subject_name']} AS subject_name,
+                {active_expression} AS is_active
+            FROM {schema['detail_table']} link
+            {schema['parent_join']}
+            LEFT JOIN SCH_CLASSES cls ON cls.CLASS_ID = {schema['grade_expression']}
+            {schema['subject_join']}
+            WHERE {schema['grade_expression']} IS NOT NULL
+              AND link.SUBJECT_ID IS NOT NULL
+              {year_filter}
+        ) academic_rows
+        GROUP BY
+            academic_rows.study_year,
+            academic_rows.grade_id,
+            academic_rows.subject_id
+        ORDER BY
+            academic_rows.grade_id,
+            MAX(academic_rows.is_active) DESC,
+            academic_rows.subject_id
     """, {"study_year": study_year})
 
 
