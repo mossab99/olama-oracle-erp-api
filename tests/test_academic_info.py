@@ -73,6 +73,7 @@ class AcademicInfoRepositoryTests(unittest.TestCase):
                 {"table_name": "SCH_MRK_CLS_SUBJECTS_M", "column_name": "CLASS_ID"},
                 {"table_name": "SCH_MRK_CLS_SUBJECTS_M", "column_name": "SUBJECT_ID"},
                 {"table_name": "SCH_MRK_CLS_SUBJECTS_M", "column_name": "SUBJECT_ID_DESC"},
+                {"table_name": "SCH_MRK_CLS_SUBJECTS_M", "column_name": "IS_ACTIVE"},
             ],
             [],
         ]
@@ -81,6 +82,9 @@ class AcademicInfoRepositoryTests(unittest.TestCase):
         self.assertIn("FROM SCH_MRK_CLS_SUBJECTS_M link", sql)
         self.assertIn("link.STUDY_YEAR = :study_year", sql)
         self.assertIn("link.SUBJECT_ID_DESC AS subject_name", sql)
+        self.assertIn("NVL(link.IS_ACTIVE, 1) AS is_active", sql)
+        self.assertIn("NVL(link.IS_ACTIVE, 1) DESC", sql)
+        self.assertNotIn("NVL(link.IS_ACTIVE, 1) = 1", sql)
         self.assertEqual(params["study_year"], "2026-2027")
 
     @patch("repositories.academic_info_repo.query_all")

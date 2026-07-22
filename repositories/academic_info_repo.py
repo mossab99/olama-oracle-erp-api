@@ -208,7 +208,7 @@ def get_grade_subjects(study_year):
     else:
         year_filter = ""
         year_select = ":study_year"
-    active_filter = "AND NVL(link.IS_ACTIVE, 1) = 1" if "IS_ACTIVE" in columns else ""
+    active_expression = "NVL(link.IS_ACTIVE, 1)" if "IS_ACTIVE" in columns else "1"
 
     return _rows(f"""
         SELECT DISTINCT
@@ -216,7 +216,8 @@ def get_grade_subjects(study_year):
             {schema['grade_expression']} AS grade_id,
             cls.CLASS_DESC AS grade_name,
             link.SUBJECT_ID AS subject_id,
-            {schema['subject_name']} AS subject_name
+            {schema['subject_name']} AS subject_name,
+            {active_expression} AS is_active
         FROM {schema['detail_table']} link
         {schema['parent_join']}
         LEFT JOIN SCH_CLASSES cls ON cls.CLASS_ID = {schema['grade_expression']}
@@ -224,8 +225,7 @@ def get_grade_subjects(study_year):
         WHERE {schema['grade_expression']} IS NOT NULL
           AND link.SUBJECT_ID IS NOT NULL
           {year_filter}
-          {active_filter}
-        ORDER BY {schema['grade_expression']}, link.SUBJECT_ID
+        ORDER BY {schema['grade_expression']}, {active_expression} DESC, link.SUBJECT_ID
     """, {"study_year": study_year})
 
 
