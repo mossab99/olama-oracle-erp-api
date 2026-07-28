@@ -365,13 +365,15 @@ def get_transportation_regions(study_year):
         SELECT
             f.TRANS_REGION_ID AS oracle_region_id,
             MIN(tr.REGION_DESC) AS region_name,
+            MIN(tr.IS_ACTIVE) AS is_active,
             MIN(f.FAMILY_ADDRESS) AS sample_address,
             COUNT(DISTINCT f.FAMILY_ID) AS family_count,
             COUNT(DISTINCT TO_CHAR(y.FAMILY_ID) || ':' || TO_CHAR(y.STUDENT_ID))
                 AS student_count
         FROM SCH_FAMILY_CARD f
-        LEFT JOIN SCH_TRANS_REGIONS tr
+        INNER JOIN SCH_TRANS_REGIONS tr
             ON tr.REGION_ID = f.TRANS_REGION_ID
+           AND tr.IS_ACTIVE = 1
         LEFT JOIN SCH_STUDENT_CARD_YEAR y
             ON y.FAMILY_ID = f.FAMILY_ID
            AND y.STUDY_YEAR = :study_year

@@ -13,6 +13,11 @@ Domain plugins, including Olama Transportation, must never call these
 endpoints. They read the canonical `olama_core_transport_buses` and
 `olama_core_transport_regions` records through Olama Core services.
 
+Region semantics:
+
+- Only rows whose `SCH_TRANS_REGIONS.IS_ACTIVE` value is `1` are returned.
+- `is_active` is included explicitly in every region object.
+
 Bus field semantics:
 
 - `bus_number`: internal school bus code from `BUS_SCHOOL_NUMBER`.
