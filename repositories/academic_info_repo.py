@@ -123,108 +123,143 @@ def _grade_subject_schema():
         raise RuntimeError("Oracle grade-subject source table was not found")
 
     detail_candidates.sort(key=lambda item: ("STUDY_YEAR" not in item[1], item[0]))
-    detail_table, detail_columns = detail_candidates[0]
     parent_columns = columns_by_table.get("SCH_MRK_AVE_PARAM", set())
     law_columns = columns_by_table.get("SCH_MRK_LAWS", set())
     if "LAW_ID" not in law_columns:
         raise RuntimeError("Oracle grading-law source has no LAW_ID")
 
-    parent_join = ""
-    grade_expression = "link.CLASS_ID"
-    grade_columns = detail_columns
-    grade_alias = "link"
-    if "CLASS_ID" not in detail_columns:
-        if "CLASS_ID" not in parent_columns:
-            raise RuntimeError("Oracle grade-subject source has no CLASS_ID mapping")
-        join_priority = (
-            "LAW_ID", "AVE_ID", "PARAM_ID", "SERIAL_ID", "STUDY_YEAR",
-            "SCHOOL_ID", "COMPANY_ID",
-        )
-        join_columns = [
-            column for column in join_priority
-            if column in detail_columns and column in parent_columns
-        ]
-        if not join_columns:
-            raise RuntimeError("Oracle grade-subject parent relationship was not found")
-        parent_join = "JOIN SCH_MRK_AVE_PARAM grade_param ON " + " AND ".join(
-            f"grade_param.{column} = link.{column}" for column in join_columns
-        )
-        grade_expression = "grade_param.CLASS_ID"
-        grade_columns = parent_columns
-        grade_alias = "grade_param"
-
-    if "LAW_ID" in detail_columns:
-        law_expression = "link.LAW_ID"
-    elif parent_join and "LAW_ID" in parent_columns:
-        law_expression = "grade_param.LAW_ID"
-    else:
-        raise RuntimeError("Oracle grade-subject source has no LAW_ID relationship")
-
     law_active_filter = (
         "WHERE NVL(active_law.IS_ACTIVE, 1) = 1"
         if "IS_ACTIVE" in law_columns else ""
     )
-    law_join = f"""
-        JOIN SCH_MRK_LAWS laws
-          ON laws.LAW_ID = {law_expression}
-         AND laws.LAW_ID = (
-             SELECT MAX(active_law.LAW_ID)
-             FROM SCH_MRK_LAWS active_law
-             {law_active_filter}
-         )
-    """
+    sources = []
+    for source_index, (detail_table, detail_columns) in enumerate(detail_candidates):
+        link_alias = f"link_{source_index}"
+        parent_alias = f"grade_param_{source_index}"
+        subject_alias = f"subject_{source_index}"
+        parent_join = ""
+        grade_expression = f"{link_alias}.CLASS_ID"
 
-    subject_name = None
-    subject_join = ""
-    for description_column in ("SUBJECT_ID_DESC", "SUBJECT_DESC", "SUBJECT_NAME"):
-        if description_column in detail_columns:
-            subject_name = f"link.{description_column}"
-            break
-
-    if subject_name is None:
-        lookup_candidates = []
-        for table_name, columns in columns_by_table.items():
-            if table_name.startswith("SCH_MRK_CLS_SUBJECTS") or "SUBJECT_ID" not in columns:
+        if "CLASS_ID" not in detail_columns:
+            if "CLASS_ID" not in parent_columns:
                 continue
-            description_column = next((
-                column for column in ("SUBJECT_ID_DESC", "SUBJECT_DESC", "SUBJECT_NAME")
-                if column in columns
-            ), None)
-            if description_column:
-                lookup_candidates.append((table_name, columns, description_column))
-        if lookup_candidates:
-            lookup_candidates.sort(key=lambda item: (item[0] != "SCH_SUBJECTS", item[0]))
-            lookup_table, lookup_columns, description_column = lookup_candidates[0]
-            join_columns = ["SUBJECT_ID"] + [
-                column for column in ("COMPANY_ID", "SCHOOL_ID")
-                if column in detail_columns and column in lookup_columns
-            ]
-            subject_join = f"LEFT JOIN {lookup_table} subject ON " + " AND ".join(
-                f"subject.{column} = link.{column}" for column in join_columns
+            join_priority = (
+                "LAW_ID", "AVE_ID", "PARAM_ID", "SERIAL_ID", "STUDY_YEAR",
+                "SCHOOL_ID", "COMPANY_ID",
             )
-            subject_name = f"subject.{description_column}"
+            join_columns = [
+                column for column in join_priority
+                if column in detail_columns and column in parent_columns
+            ]
+            if not join_columns:
+                continue
+            parent_join = (
+                f"JOIN SCH_MRK_AVE_PARAM {parent_alias} ON " +
+                " AND ".join(
+                    f"{parent_alias}.{column} = {link_alias}.{column}"
+                    for column in join_columns
+                )
+            )
+            grade_expression = f"{parent_alias}.CLASS_ID"
 
-    if subject_name is None:
-        subject_name = "TO_CHAR(link.SUBJECT_ID)"
+        if "LAW_ID" in detail_columns:
+            law_expression = f"{link_alias}.LAW_ID"
+        elif parent_join and "LAW_ID" in parent_columns:
+            law_expression = f"{parent_alias}.LAW_ID"
+        else:
+            continue
+
+        law_join = f"""
+            JOIN SCH_MRK_LAWS laws_{source_index}
+              ON laws_{source_index}.LAW_ID = {law_expression}
+             AND laws_{source_index}.LAW_ID = (
+                 SELECT MAX(active_law.LAW_ID)
+                 FROM SCH_MRK_LAWS active_law
+                 {law_active_filter}
+             )
+        """
+
+        subject_name = None
+        subject_join = ""
+        for description_column in ("SUBJECT_ID_DESC", "SUBJECT_DESC", "SUBJECT_NAME"):
+            if description_column in detail_columns:
+                subject_name = f"{link_alias}.{description_column}"
+                break
+
+        if subject_name is None:
+            lookup_candidates = []
+            for table_name, columns in columns_by_table.items():
+                if table_name.startswith("SCH_MRK_CLS_SUBJECTS") or "SUBJECT_ID" not in columns:
+                    continue
+                description_column = next((
+                    column for column in ("SUBJECT_ID_DESC", "SUBJECT_DESC", "SUBJECT_NAME")
+                    if column in columns
+                ), None)
+                if description_column:
+                    lookup_candidates.append((table_name, columns, description_column))
+            if lookup_candidates:
+                lookup_candidates.sort(key=lambda item: (item[0] != "SCH_SUBJECTS", item[0]))
+                lookup_table, lookup_columns, description_column = lookup_candidates[0]
+                join_columns = ["SUBJECT_ID"] + [
+                    column for column in ("COMPANY_ID", "SCHOOL_ID")
+                    if column in detail_columns and column in lookup_columns
+                ]
+                subject_join = f"LEFT JOIN {lookup_table} {subject_alias} ON " + " AND ".join(
+                    f"{subject_alias}.{column} = {link_alias}.{column}"
+                    for column in join_columns
+                )
+                subject_name = f"{subject_alias}.{description_column}"
+
+        if subject_name is None:
+            subject_name = f"TO_CHAR({link_alias}.SUBJECT_ID)"
+
+        sources.append({
+            "detail_table": detail_table,
+            "detail_columns": detail_columns,
+            "link_alias": link_alias,
+            "parent_join": parent_join,
+            "grade_expression": grade_expression,
+            "law_expression": law_expression,
+            "law_join": law_join,
+            "subject_join": subject_join,
+            "subject_name": subject_name,
+        })
+
+    if not sources:
+        raise RuntimeError("Oracle grade-subject source has no usable grade mapping")
 
     return {
-        "detail_table": detail_table,
-        "detail_columns": detail_columns,
-        "parent_join": parent_join,
-        "grade_expression": grade_expression,
-        "grade_columns": grade_columns,
-        "grade_alias": grade_alias,
-        "law_expression": law_expression,
-        "law_join": law_join,
-        "subject_join": subject_join,
-        "subject_name": subject_name,
+        "sources": sources,
     }
 
 
 def get_grade_subjects(study_year):
     schema = _grade_subject_schema()
-    columns = schema["detail_columns"]
-    active_expression = "NVL(link.IS_ACTIVE, 1)" if "IS_ACTIVE" in columns else "1"
+    source_queries = []
+    for source in schema["sources"]:
+        link_alias = source["link_alias"]
+        active_expression = (
+            f"NVL({link_alias}.IS_ACTIVE, 1)"
+            if "IS_ACTIVE" in source["detail_columns"] else "1"
+        )
+        source_queries.append(f"""
+            SELECT
+                :study_year AS study_year,
+                {source['law_expression']} AS law_id,
+                {source['grade_expression']} AS grade_id,
+                cls.CLASS_DESC AS grade_name,
+                {link_alias}.SUBJECT_ID AS subject_id,
+                {source['subject_name']} AS subject_name,
+                {active_expression} AS is_active
+            FROM {source['detail_table']} {link_alias}
+            {source['parent_join']}
+            {source['law_join']}
+            LEFT JOIN SCH_CLASSES cls ON cls.CLASS_ID = {source['grade_expression']}
+            {source['subject_join']}
+            WHERE {source['grade_expression']} IS NOT NULL
+              AND {link_alias}.SUBJECT_ID IS NOT NULL
+        """)
+    union_query = "\nUNION ALL\n".join(source_queries)
 
     return _rows(f"""
         SELECT
@@ -236,21 +271,7 @@ def get_grade_subjects(study_year):
             MAX(academic_rows.subject_name) AS subject_name,
             MAX(academic_rows.is_active) AS is_active
         FROM (
-            SELECT
-                :study_year AS study_year,
-                {schema['law_expression']} AS law_id,
-                {schema['grade_expression']} AS grade_id,
-                cls.CLASS_DESC AS grade_name,
-                link.SUBJECT_ID AS subject_id,
-                {schema['subject_name']} AS subject_name,
-                {active_expression} AS is_active
-            FROM {schema['detail_table']} link
-            {schema['parent_join']}
-            {schema['law_join']}
-            LEFT JOIN SCH_CLASSES cls ON cls.CLASS_ID = {schema['grade_expression']}
-            {schema['subject_join']}
-            WHERE {schema['grade_expression']} IS NOT NULL
-              AND link.SUBJECT_ID IS NOT NULL
+            {union_query}
         ) academic_rows
         GROUP BY
             academic_rows.study_year,

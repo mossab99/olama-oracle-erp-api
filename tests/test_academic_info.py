@@ -82,20 +82,20 @@ class AcademicInfoRepositoryTests(unittest.TestCase):
         ]
         get_grade_subjects("2026-2027")
         sql, params = query_all.call_args_list[1].args
-        self.assertIn("FROM SCH_MRK_CLS_SUBJECTS_M link", sql)
+        self.assertIn("FROM SCH_MRK_CLS_SUBJECTS_M link_0", sql)
         self.assertIn(":study_year AS study_year", sql)
-        self.assertIn("link.SUBJECT_ID_DESC AS subject_name", sql)
-        self.assertIn("NVL(link.IS_ACTIVE, 1) AS is_active", sql)
+        self.assertIn("link_0.SUBJECT_ID_DESC AS subject_name", sql)
+        self.assertIn("NVL(link_0.IS_ACTIVE, 1) AS is_active", sql)
         self.assertIn("MAX(academic_rows.is_active) DESC", sql)
         self.assertIn("GROUP BY", sql)
         self.assertIn("JOIN SCH_MRK_LAWS laws", sql)
-        self.assertIn("laws.LAW_ID = link.LAW_ID", sql)
+        self.assertIn("laws_0.LAW_ID = link_0.LAW_ID", sql)
         self.assertIn("SELECT MAX(active_law.LAW_ID)", sql)
         self.assertIn("WHERE NVL(active_law.IS_ACTIVE, 1) = 1", sql)
         self.assertIn("academic_rows.law_id", sql)
         self.assertIn("academic_rows.grade_id", sql)
         self.assertIn("academic_rows.subject_id", sql)
-        self.assertNotIn("NVL(link.IS_ACTIVE, 1) = 1", sql)
+        self.assertNotIn("NVL(link_0.IS_ACTIVE, 1) = 1", sql)
         self.assertEqual(params["study_year"], "2026-2027")
 
     @patch("repositories.academic_info_repo.query_all")
@@ -116,11 +116,33 @@ class AcademicInfoRepositoryTests(unittest.TestCase):
         get_grade_subjects("2026-2027")
         sql, params = query_all.call_args_list[1].args
         self.assertIn("JOIN SCH_MRK_AVE_PARAM grade_param", sql)
-        self.assertIn("grade_param.LAW_ID = link.LAW_ID", sql)
-        self.assertIn("laws.LAW_ID = link.LAW_ID", sql)
-        self.assertIn("grade_param.CLASS_ID AS grade_id", sql)
-        self.assertIn("LEFT JOIN SCH_SUBJECTS subject", sql)
+        self.assertIn("grade_param_0.LAW_ID = link_0.LAW_ID", sql)
+        self.assertIn("laws_0.LAW_ID = link_0.LAW_ID", sql)
+        self.assertIn("grade_param_0.CLASS_ID AS grade_id", sql)
+        self.assertIn("LEFT JOIN SCH_SUBJECTS subject_0", sql)
         self.assertEqual(params["study_year"], "2026-2027")
+
+    @patch("repositories.academic_info_repo.query_all")
+    def test_subject_query_unions_every_usable_subject_source(self, query_all):
+        query_all.side_effect = [
+            [
+                {"table_name": "SCH_MRK_AVE_PARAM", "column_name": "LAW_ID"},
+                {"table_name": "SCH_MRK_AVE_PARAM", "column_name": "CLASS_ID"},
+                {"table_name": "SCH_MRK_CLS_SUBJECTS_D", "column_name": "LAW_ID"},
+                {"table_name": "SCH_MRK_CLS_SUBJECTS_D", "column_name": "SUBJECT_ID"},
+                {"table_name": "SCH_MRK_CLS_SUBJECTS_M", "column_name": "LAW_ID"},
+                {"table_name": "SCH_MRK_CLS_SUBJECTS_M", "column_name": "CLASS_ID"},
+                {"table_name": "SCH_MRK_CLS_SUBJECTS_M", "column_name": "SUBJECT_ID"},
+                {"table_name": "SCH_MRK_LAWS", "column_name": "LAW_ID"},
+            ],
+            [],
+        ]
+        get_grade_subjects("2026-2027")
+        sql, _ = query_all.call_args_list[1].args
+        self.assertIn("FROM SCH_MRK_CLS_SUBJECTS_D link_0", sql)
+        self.assertIn("JOIN SCH_MRK_AVE_PARAM grade_param_0", sql)
+        self.assertIn("FROM SCH_MRK_CLS_SUBJECTS_M link_1", sql)
+        self.assertIn("UNION ALL", sql)
 
 
 if __name__ == "__main__":
