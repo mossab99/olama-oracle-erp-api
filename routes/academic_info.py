@@ -8,6 +8,7 @@ from repositories.academic_info_repo import (
     get_grade_subjects,
     get_grades,
     get_sections,
+    get_transferred_students,
 )
 
 
@@ -98,6 +99,20 @@ def grade_subjects():
         return jsonify({"status": "error", "message": str(exc)}), 400
     return _response(
         "grade_subjects", lambda: get_grade_subjects(study_year), study_year
+    )
+
+
+@academic_info_bp.route("/api/academic/transferred-students", methods=["GET"])
+@require_api_key
+def transferred_students():
+    try:
+        study_year = _study_year()
+    except ValueError as exc:
+        return jsonify({"status": "error", "message": str(exc)}), 400
+    return _response(
+        "transferred_students",
+        lambda: get_transferred_students(study_year),
+        study_year,
     )
 
 

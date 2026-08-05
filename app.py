@@ -78,6 +78,7 @@ def create_app():
                 "academic_grade_sections": "/api/academic/grade-sections?study_year=2025/2026",
                 "academic_students": "/api/academic/students?study_year=2025/2026&grade_id=1&section_id=1",
                 "academic_grade_subjects": "/api/academic/grade-subjects?study_year=2025/2026",
+                "academic_transferred_students": "/api/academic/transferred-students?study_year=2025/2026",
                 "academic_snapshot": "/api/academic/snapshot?study_year=2025/2026"
             }
         })

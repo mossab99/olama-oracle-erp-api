@@ -285,6 +285,41 @@ def get_grade_subjects(study_year):
     """, {"study_year": study_year})
 
 
+def get_transferred_students(study_year):
+    return _rows("""
+        SELECT
+            NVL(t.STUDY_YEAR, :study_year) AS study_year,
+            t.FAMILY_ID AS family_id,
+            t.STUDENT_ID AS student_id,
+            TRIM(
+                s.STUDENT_NAME_1 || ' ' ||
+                s.STUDENT_NAME_2 || ' ' ||
+                s.STUDENT_NAME_3 || ' ' ||
+                s.STUDENT_SURNAME
+            ) AS student_name,
+            s.STUDENT_NATIONAL_NO AS student_national_no,
+            COALESCE(t.CLASS_ID, y.CLASS_ID) AS class_id,
+            cls.CLASS_DESC AS class_name,
+            COALESCE(t.SECTION_ID, y.SECTION_ID) AS section_id,
+            sec.SECTION_DESC AS section_name,
+            t.TRANS_DATE AS trans_date,
+            t.TO_SCHOOL AS to_school,
+            t.FROM_SCHOOL AS from_school,
+            t.NOTES AS notes
+        FROM SCH_STUDENT_TRANSF_CERT t
+        LEFT JOIN SCH_STUDENT_CARD s
+          ON s.FAMILY_ID = t.FAMILY_ID AND s.STUDENT_ID = t.STUDENT_ID
+        LEFT JOIN SCH_STUDENT_CARD_YEAR y
+          ON y.FAMILY_ID = t.FAMILY_ID AND y.STUDENT_ID = t.STUDENT_ID AND y.STUDY_YEAR = :study_year
+        LEFT JOIN SCH_CLASSES cls
+          ON cls.CLASS_ID = COALESCE(t.CLASS_ID, y.CLASS_ID)
+        LEFT JOIN SCH_SECTIONS sec
+          ON sec.SECTION_ID = COALESCE(t.SECTION_ID, y.SECTION_ID)
+        WHERE (t.STUDY_YEAR = :study_year OR y.STUDY_YEAR = :study_year OR :study_year IS NULL)
+        ORDER BY t.TRANS_DATE DESC, t.FAMILY_ID, t.STUDENT_ID
+    """, {"study_year": study_year})
+
+
 def get_academic_snapshot(study_year):
     return {
         "study_year": study_year,
@@ -293,4 +328,6 @@ def get_academic_snapshot(study_year):
         "grade_sections": get_grade_sections(study_year),
         "students": get_academic_students(study_year),
         "grade_subjects": get_grade_subjects(study_year),
+        "transferred_students": get_transferred_students(study_year),
     }
+
