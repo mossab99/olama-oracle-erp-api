@@ -126,9 +126,10 @@ def academic_snapshot():
         return jsonify(snapshot)
     except ValueError as exc:
         return jsonify({"status": "error", "message": str(exc)}), 400
-    except Exception:
+    except Exception as exc:
         current_app.logger.exception("Academic snapshot failed")
         return jsonify({
             "status": "error",
             "message": "Unable to retrieve academic information",
+            "detail": str(exc),
         }), 500
