@@ -1,0 +1,32 @@
+name: Deploy to OracleBridge Server
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    name: Deploy via SSH
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy to server
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: bus.olama.online
+          username: root
+          password: ${{ secrets.SSH_PASSWORD }}
+          port: 22
+          script: |
+            echo "=== Pulling latest code ==="
+            cd /opt/olama/oracle_erp_api
+            git pull origin main
+
+            echo "=== Restarting API service ==="
+            systemctl restart olama-oracle-api
+
+            echo "=== Checking service status ==="
+            systemctl status olama-oracle-api --no-pager -l | head -20
+
+            echo "=== Deployment complete ==="
