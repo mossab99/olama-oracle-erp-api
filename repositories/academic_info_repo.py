@@ -285,10 +285,54 @@ def get_grade_subjects(study_year):
     """, {"study_year": study_year})
 
 
+def _transf_cert_columns():
+    """
+    Return the actual column names present in SCH_STUDENT_TRANSF_CERT.
+    Results are cached for the process lifetime.
+    """
+    if not hasattr(_transf_cert_columns, "_cache"):
+        rows = query_all(
+            "SELECT column_name FROM user_tab_columns "
+            "WHERE table_name = 'SCH_STUDENT_TRANSF_CERT' ORDER BY column_id"
+        )
+        _transf_cert_columns._cache = {r.get("column_name") or r.get("COLUMN_NAME") for r in rows}
+    return _transf_cert_columns._cache
+
+
+def _col(alias, col, default="NULL"):
+    """Return 't.<col> AS <alias>' if col exists in the table, else '<default> AS <alias>'."""
+    cols = _transf_cert_columns()
+    if col.upper() in (c.upper() for c in cols):
+        return f"t.{col} AS {alias}"
+    return f"{default} AS {alias}"
+
+
 def get_transferred_students(study_year):
-    return _rows("""
+    """
+    Retrieve transferred students from SCH_STUDENT_TRANSF_CERT.
+    Only uses columns that actually exist in the Oracle table.
+    Class/section names are always resolved from SCH_STUDENT_CARD_YEAR
+    and the master tables to stay safe.
+    """
+    # Confirmed from Oracle forms: STUDY_YEAR, FAMILY_ID, STUDENT_ID, TRANS_DATE, TO_SCHOOL
+    # Optional columns: CLASS_ID, SECTION_ID, FROM_SCHOOL, NOTES — discovered dynamically
+    class_expr = (
+        "COALESCE(t.CLASS_ID, y.CLASS_ID)"
+        if "CLASS_ID" in (c.upper() for c in _transf_cert_columns())
+        else "y.CLASS_ID"
+    )
+    section_expr = (
+        "COALESCE(t.SECTION_ID, y.SECTION_ID)"
+        if "SECTION_ID" in (c.upper() for c in _transf_cert_columns())
+        else "y.SECTION_ID"
+    )
+
+    from_school_col = _col("from_school", "FROM_SCHOOL")
+    notes_col = _col("notes", "NOTES")
+
+    sql = f"""
         SELECT
-            NVL(t.STUDY_YEAR, :study_year) AS study_year,
+            t.STUDY_YEAR AS study_year,
             t.FAMILY_ID AS family_id,
             t.STUDENT_ID AS student_id,
             TRIM(
@@ -298,29 +342,43 @@ def get_transferred_students(study_year):
                 s.STUDENT_SURNAME
             ) AS student_name,
             s.STUDENT_NATIONAL_NO AS student_national_no,
-            COALESCE(t.CLASS_ID, y.CLASS_ID) AS class_id,
+            {class_expr} AS class_id,
             cls.CLASS_DESC AS class_name,
-            COALESCE(t.SECTION_ID, y.SECTION_ID) AS section_id,
+            {section_expr} AS section_id,
             sec.SECTION_DESC AS section_name,
             t.TRANS_DATE AS trans_date,
             t.TO_SCHOOL AS to_school,
-            t.FROM_SCHOOL AS from_school,
-            t.NOTES AS notes
+            {from_school_col},
+            {notes_col}
         FROM SCH_STUDENT_TRANSF_CERT t
         LEFT JOIN SCH_STUDENT_CARD s
           ON s.FAMILY_ID = t.FAMILY_ID AND s.STUDENT_ID = t.STUDENT_ID
         LEFT JOIN SCH_STUDENT_CARD_YEAR y
-          ON y.FAMILY_ID = t.FAMILY_ID AND y.STUDENT_ID = t.STUDENT_ID AND y.STUDY_YEAR = :study_year
+          ON y.FAMILY_ID = t.FAMILY_ID
+         AND y.STUDENT_ID = t.STUDENT_ID
+         AND y.STUDY_YEAR = :study_year
         LEFT JOIN SCH_CLASSES cls
-          ON cls.CLASS_ID = COALESCE(t.CLASS_ID, y.CLASS_ID)
+          ON cls.CLASS_ID = {class_expr}
         LEFT JOIN SCH_SECTIONS sec
-          ON sec.SECTION_ID = COALESCE(t.SECTION_ID, y.SECTION_ID)
-        WHERE (t.STUDY_YEAR = :study_year OR y.STUDY_YEAR = :study_year OR :study_year IS NULL)
+          ON sec.SECTION_ID = {section_expr}
+        WHERE t.STUDY_YEAR = :study_year
         ORDER BY t.TRANS_DATE DESC, t.FAMILY_ID, t.STUDENT_ID
-    """, {"study_year": study_year})
+    """
+    return _rows(sql, {"study_year": study_year})
 
 
 def get_academic_snapshot(study_year):
+    """
+    Build a full academic snapshot.  The transferred_students key is populated
+    on a best-effort basis: if the query fails (e.g. column mismatch on this
+    Oracle version) it degrades to an empty list so the rest of the sync
+    continues normally.
+    """
+    try:
+        transferred = get_transferred_students(study_year)
+    except Exception:
+        transferred = []
+
     return {
         "study_year": study_year,
         "grades": get_grades(),
@@ -328,6 +386,6 @@ def get_academic_snapshot(study_year):
         "grade_sections": get_grade_sections(study_year),
         "students": get_academic_students(study_year),
         "grade_subjects": get_grade_subjects(study_year),
-        "transferred_students": get_transferred_students(study_year),
+        "transferred_students": transferred,
     }
 
