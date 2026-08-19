@@ -24,6 +24,8 @@ def get_all_families():
             f.FAMILY_HOME_PHONE AS family_home_phone,
             f.FAM_CLASS_ID AS family_class_id,
             fc.CLASS_DESC AS family_class_name,
+            f.TRANS_REGION_ID AS trans_region_id,
+            tr.REGION_DESC AS trans_region_name,
             f.IS_ACTIVE AS is_active,
 
             NVL(sc.student_count, 0) AS student_count
@@ -32,6 +34,9 @@ def get_all_families():
 
         LEFT JOIN SCH_FAMILY_CLASS fc
             ON fc.CLASS_ID = f.FAM_CLASS_ID
+
+        LEFT JOIN SCH_TRANS_REGIONS tr
+            ON tr.REGION_ID = f.TRANS_REGION_ID
 
         LEFT JOIN (
             SELECT
@@ -78,6 +83,8 @@ def get_family_by_id(family_id):
             f.MOTHER_NATIONAL_NO AS mother_national_no,
             f.FAM_CLASS_ID AS family_class_id,
             fc.CLASS_DESC AS family_class_name,
+            f.TRANS_REGION_ID AS trans_region_id,
+            tr.REGION_DESC AS trans_region_name,
             f.IS_ACTIVE AS is_active,
             f.NOTES AS notes
 
@@ -85,6 +92,9 @@ def get_family_by_id(family_id):
 
         LEFT JOIN SCH_FAMILY_CLASS fc
             ON fc.CLASS_ID = f.FAM_CLASS_ID
+
+        LEFT JOIN SCH_TRANS_REGIONS tr
+            ON tr.REGION_ID = f.TRANS_REGION_ID
 
         WHERE f.FAMILY_ID = :family_id
     """
