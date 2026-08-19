@@ -15,6 +15,7 @@ from routes.messaging_transportation import messaging_transportation_bp
 from routes.financial_contract import financial_contract_bp
 from routes.employees import employees_bp
 from routes.academic_info import academic_info_bp
+from routes.fast_sync import fast_sync_bp
 
 
 def create_app():
@@ -39,6 +40,7 @@ def create_app():
     app.register_blueprint(financial_contract_bp)
     app.register_blueprint(employees_bp)
     app.register_blueprint(academic_info_bp)
+    app.register_blueprint(fast_sync_bp)
 
     @app.route("/", methods=["GET"])
     def index():
@@ -79,7 +81,8 @@ def create_app():
                 "academic_students": "/api/academic/students?study_year=2025/2026&grade_id=1&section_id=1",
                 "academic_grade_subjects": "/api/academic/grade-subjects?study_year=2025/2026",
                 "academic_transferred_students": "/api/academic/transferred-students?study_year=2025/2026",
-                "academic_snapshot": "/api/academic/snapshot?study_year=2025/2026"
+                "academic_snapshot": "/api/academic/snapshot?study_year=2025/2026",
+                "fast_sync": "/api/v1/sync/families-bulk?study_year=2025/2026&limit=50&cursor=0"
             }
         })
 
