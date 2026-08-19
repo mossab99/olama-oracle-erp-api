@@ -44,6 +44,7 @@ The bridge is a read-only Flask service that connects to Oracle ERP and returns 
 
 | Method | Endpoint | Parameters | Main response content | Main Oracle sources | Confirmed Olama consumer |
 |---|---|---|---|---|---|
+| GET | `/api/transportation/family-locations` | Optional: `limit`, `offset` | Paginated active-family address, building/home number, and Oracle area | `SCH_FAMILY_CARD`, `SCH_TRANS_REGIONS` | Olama Oracle Sync |
 | GET | `/api/families/{family_id}/transportation` | Optional: `study_year` | Transportation records for a family's students | `SCH_STUDENT_TRANS`, student/year, school/class/section, transport groups and buses | Olama Core; Olama Messages |
 | GET | `/api/messaging/transportation/recipients` | Required: `study_year`; optional: `route_mode`, `class_id`, `section_id`, `departure_bus`, `arrival_bus`, `trans_route`, `family_id`, `active_only`, `limit`, `offset` | Filtered message recipients with bus and route data | Transportation, family, student, academic, class and section tables | Olama Messages |
 | GET | `/api/messaging/transportation/options` | Required: `study_year`; optional: `active_only` | Available buses, routes, classes and sections for filters | Transportation, family, academic, class and section tables | Olama Messages |

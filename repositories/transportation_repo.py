@@ -111,6 +111,31 @@ def get_transportation_student_count(study_year, family_id=None, region_id=None)
     return int((result or {}).get("total", 0))
 
 
+def get_transportation_family_locations(limit=500, offset=0):
+    """Return the Oracle-owned location fields used by transportation planning."""
+    inner = """
+        SELECT
+            f.FAMILY_ID AS family_id,
+            f.FAMILY_ADDRESS AS family_address,
+            f.HOMENO AS home_no,
+            f.BLDNGNO AS building_no,
+            f.TRANS_REGION_ID AS trans_region_id,
+            tr.REGION_DESC AS trans_region_name
+        FROM SCH_FAMILY_CARD f
+        LEFT JOIN SCH_TRANS_REGIONS tr
+            ON tr.REGION_ID = f.TRANS_REGION_ID
+        WHERE f.IS_ACTIVE = 1
+    """
+    return _page(inner, {}, limit, offset, "f.FAMILY_ID")
+
+
+def get_transportation_family_location_count():
+    result = query_one(
+        "SELECT COUNT(*) AS total FROM SCH_FAMILY_CARD f WHERE f.IS_ACTIVE = 1"
+    )
+    return int((result or {}).get("total", 0))
+
+
 def get_transportation_employees():
     """Return confirmed fleet employee references without guessing a name table."""
     sql = """

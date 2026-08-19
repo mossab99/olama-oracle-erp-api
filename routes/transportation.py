@@ -7,6 +7,8 @@ from repositories.transportation_repo import (
     get_family_transportation,
     get_transportation_buses,
     get_transportation_employees,
+    get_transportation_family_location_count,
+    get_transportation_family_locations,
     get_transportation_regions,
     get_transportation_student_count,
     get_transportation_students,
@@ -97,6 +99,25 @@ def transportation_regions():
             "study_year": year,
             "count": len(regions),
             "regions": regions,
+        })
+    except Exception as exc:
+        return _error(exc)
+
+
+@transportation_bp.route("/api/transportation/family-locations", methods=["GET"])
+@require_api_key
+def transportation_family_locations():
+    try:
+        limit, offset = _pagination()
+        locations = get_transportation_family_locations(limit, offset)
+        total = get_transportation_family_location_count()
+        return jsonify({
+            "status": "ok",
+            "count": len(locations),
+            "total": total,
+            "limit": limit,
+            "offset": offset,
+            "locations": locations,
         })
     except Exception as exc:
         return _error(exc)

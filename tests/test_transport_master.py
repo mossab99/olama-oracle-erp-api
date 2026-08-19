@@ -5,6 +5,7 @@ from app import create_app
 from config import Config
 from repositories.transportation_repo import (
     get_transportation_buses,
+    get_transportation_family_locations,
     get_transportation_regions,
 )
 
@@ -22,6 +23,10 @@ class TransportMasterRouteTests(unittest.TestCase):
         )
         self.assertEqual(
             self.client.get("/api/transportation/regions").status_code, 401
+        )
+        self.assertEqual(
+            self.client.get("/api/transportation/family-locations").status_code,
+            401,
         )
 
     @patch("routes.transportation.get_transportation_buses")
@@ -52,8 +57,40 @@ class TransportMasterRouteTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         get_regions.assert_called_once_with("2026/2027")
 
+    @patch("routes.transportation.get_transportation_family_location_count")
+    @patch("routes.transportation.get_transportation_family_locations")
+    def test_family_locations_contract(self, get_locations, get_count):
+        get_locations.return_value = [{
+            "family_id": 1200,
+            "family_address": "Amman",
+            "trans_region_id": 89,
+            "trans_region_name": "عدن",
+        }]
+        get_count.return_value = 1
+        response = self.client.get(
+            "/api/transportation/family-locations?limit=25&offset=50",
+            headers=self.headers,
+        )
+        self.assertEqual(response.status_code, 200)
+        payload = response.get_json()
+        self.assertEqual(payload["locations"][0]["family_id"], 1200)
+        self.assertEqual(payload["total"], 1)
+        get_locations.assert_called_once_with(25, 50)
+
 
 class TransportMasterRepositoryTests(unittest.TestCase):
+    @patch("repositories.transportation_repo.query_all")
+    def test_family_locations_are_paginated_and_include_oracle_area(self, query_all):
+        query_all.return_value = []
+        get_transportation_family_locations(25, 50)
+        sql, binds = query_all.call_args.args
+        self.assertIn("f.FAMILY_ADDRESS AS family_address", sql)
+        self.assertIn("f.TRANS_REGION_ID AS trans_region_id", sql)
+        self.assertIn("tr.REGION_DESC AS trans_region_name", sql)
+        self.assertIn("LEFT JOIN SCH_TRANS_REGIONS", sql)
+        self.assertEqual(binds["max_row"], 75)
+        self.assertEqual(binds["offset"], 50)
+
     @patch("repositories.transportation_repo.query_all")
     def test_bus_identity_uses_assignment_number_and_confirmed_fields(self, query_all):
         query_all.side_effect = [
