@@ -117,15 +117,18 @@ class TransportMasterRepositoryTests(unittest.TestCase):
         self.assertNotIn("|| ':' ||", sql)
 
     @patch("repositories.transportation_repo.query_all")
-    def test_regions_use_bound_study_year(self, query_all):
+    def test_regions_include_active_master_rows_without_family_demand(self, query_all):
         query_all.return_value = []
         get_transportation_regions("2026/2027")
         sql, binds = query_all.call_args.args
-        self.assertIn("SCH_FAMILY_CARD", sql)
+        self.assertIn("FROM SCH_TRANS_REGIONS tr", sql)
+        self.assertIn("LEFT JOIN SCH_FAMILY_CARD f", sql)
         self.assertIn("SCH_STUDENT_CARD_YEAR", sql)
-        self.assertIn("INNER JOIN SCH_TRANS_REGIONS", sql)
-        self.assertIn("tr.IS_ACTIVE = 1", sql)
-        self.assertIn("MIN(tr.IS_ACTIVE) AS is_active", sql)
+        self.assertIn("WHERE tr.IS_ACTIVE = 1", sql)
+        self.assertIn("tr.IS_ACTIVE AS is_active", sql)
+        self.assertIn(
+            "GROUP BY tr.REGION_ID, tr.REGION_DESC, tr.IS_ACTIVE", sql
+        )
         self.assertEqual(binds, {"study_year": "2026/2027"})
 
 

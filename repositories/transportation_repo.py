@@ -385,26 +385,25 @@ def get_transportation_buses(include_inactive=True):
 
 
 def get_transportation_regions(study_year):
-    """Build source-region demand from proven family and student-year tables."""
+    """Return every active Oracle region with optional family/student demand."""
     sql = """
         SELECT
-            f.TRANS_REGION_ID AS oracle_region_id,
-            MIN(tr.REGION_DESC) AS region_name,
-            MIN(tr.IS_ACTIVE) AS is_active,
+            tr.REGION_ID AS oracle_region_id,
+            tr.REGION_DESC AS region_name,
+            tr.IS_ACTIVE AS is_active,
             MIN(f.FAMILY_ADDRESS) AS sample_address,
             COUNT(DISTINCT f.FAMILY_ID) AS family_count,
             COUNT(DISTINCT TO_CHAR(y.FAMILY_ID) || ':' || TO_CHAR(y.STUDENT_ID))
                 AS student_count
-        FROM SCH_FAMILY_CARD f
-        INNER JOIN SCH_TRANS_REGIONS tr
-            ON tr.REGION_ID = f.TRANS_REGION_ID
-           AND tr.IS_ACTIVE = 1
+        FROM SCH_TRANS_REGIONS tr
+        LEFT JOIN SCH_FAMILY_CARD f
+            ON f.TRANS_REGION_ID = tr.REGION_ID
         LEFT JOIN SCH_STUDENT_CARD_YEAR y
             ON y.FAMILY_ID = f.FAMILY_ID
            AND y.STUDY_YEAR = :study_year
            AND y.STUDENT_STATUS = 1
-        WHERE f.TRANS_REGION_ID IS NOT NULL
-        GROUP BY f.TRANS_REGION_ID
-        ORDER BY f.TRANS_REGION_ID
+        WHERE tr.IS_ACTIVE = 1
+        GROUP BY tr.REGION_ID, tr.REGION_DESC, tr.IS_ACTIVE
+        ORDER BY tr.REGION_ID
     """
     return _rows(query_all(sql, {"study_year": study_year}))
